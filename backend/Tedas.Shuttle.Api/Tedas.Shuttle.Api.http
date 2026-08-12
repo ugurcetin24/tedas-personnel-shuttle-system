@@ -1,0 +1,6 @@
+@Tedas.Shuttle.Api_HostAddress = http://localhost:5284
+
+GET {{Tedas.Shuttle.Api_HostAddress}}/health
+Accept: application/json
+
+###
