@@ -113,6 +113,17 @@ public sealed class AssignmentService(
                 "Servis vardiyasi kapasitesi dolu.");
         }
 
+        if (request.BoardingRoutePointId.HasValue
+            && !await assignmentRepository.RoutePointBelongsToShiftAsync(
+                request.BoardingRoutePointId.Value,
+                shift.Id,
+                cancellationToken))
+        {
+            throw new BusinessConflictException(
+                "BOARDING_ROUTE_POINT_INVALID",
+                "Biniş noktasi secilen vardiyaya ait aktif bir guzergah noktasi olmalidir.");
+        }
+
         var assignment = new PersonnelAssignment(
             personnel.Id,
             shift.Id,
@@ -202,4 +213,3 @@ public sealed class AssignmentService(
         return string.Join(' ', value.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 }
-

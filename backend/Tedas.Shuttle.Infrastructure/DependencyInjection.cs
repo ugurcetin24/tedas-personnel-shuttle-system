@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<IShiftRepository, ShiftRepository>();
         services.AddScoped<IDriverRepository, DriverRepository>();
         services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+        services.AddScoped<IRoutePointRepository, RoutePointRepository>();
 
         return services;
     }

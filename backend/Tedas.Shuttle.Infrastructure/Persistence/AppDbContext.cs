@@ -15,6 +15,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<PersonnelAssignment> PersonnelAssignments => Set<PersonnelAssignment>();
 
+    public DbSet<RoutePoint> RoutePoints => Set<RoutePoint>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

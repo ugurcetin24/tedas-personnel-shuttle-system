@@ -85,6 +85,19 @@ public sealed class AssignmentRepository(AppDbContext dbContext) : IAssignmentRe
             cancellationToken);
     }
 
+    public Task<bool> RoutePointBelongsToShiftAsync(
+        Guid routePointId,
+        Guid shiftId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.RoutePoints.AnyAsync(
+            routePoint =>
+                routePoint.Id == routePointId
+                && routePoint.ShuttleShiftId == shiftId
+                && routePoint.IsActive,
+            cancellationToken);
+    }
+
     public async Task AddAsync(PersonnelAssignment assignment, CancellationToken cancellationToken)
     {
         await dbContext.PersonnelAssignments.AddAsync(assignment, cancellationToken);
@@ -95,4 +108,3 @@ public sealed class AssignmentRepository(AppDbContext dbContext) : IAssignmentRe
         return dbContext.SaveChangesAsync(cancellationToken);
     }
 }
-

@@ -128,7 +128,7 @@ Bu liste `Cors:AllowedOrigins` üzerinden değiştirilebilir.
 
 ## Database Migration Strategy
 
-`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts`, Phase 6 ile `AddDrivers`, Phase 7 ile `AddPersonnelAssignments` migration dosyaları eklenmiştir.
+`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts`, Phase 6 ile `AddDrivers`, Phase 7 ile `AddPersonnelAssignments`, Phase 8 ile `AddRoutePoints` migration dosyaları eklenmiştir.
 
 ## Personnel Module
 
@@ -256,7 +256,35 @@ Phase 7 ile servis atamaları modülünün vertical slice'ı tamamlanmıştır:
   - atamayı pasife alma
   - vardiya doluluk bilgisini gösterme
 
-Not: `BoardingRoutePointId` alanı Phase 8 RoutePoint modülü için nullable olarak hazırlandı. RoutePoint entity'si henüz bulunmadığı için bu fazda biniş noktası FK doğrulaması uygulanmadı.
+Not: `BoardingRoutePointId` alanı Phase 8 RoutePoint modülü için nullable olarak hazırlandı.
+
+## Route Point Module
+
+Phase 8 ile güzergah noktaları modülünün vertical slice'ı tamamlanmıştır:
+
+- `RoutePoint` domain entity'si.
+- Her `ShuttleShift` için sıralı güzergah noktaları.
+- EF Core tablo konfigürasyonu, unique `(ShuttleShiftId, Order)` index'i ve `AddRoutePoints` migration.
+- DTO, validation, repository interface ve application service.
+- Backend business rule kontrolleri:
+  - route point yalnızca mevcut vardiya altında oluşturulur
+  - koordinatlar geçerli latitude/longitude aralığında olmalıdır
+  - sıralama isteği vardiyaya ait tüm noktaları eksiksiz ve tekrarsız içermelidir
+  - personel atamasında `BoardingRoutePointId` verilirse seçilen vardiyaya ait aktif nokta olmalıdır
+- REST endpointleri:
+  - `GET /api/shifts/{shiftId}/route-points`
+  - `POST /api/shifts/{shiftId}/route-points`
+  - `PATCH /api/shifts/{shiftId}/route-points/order`
+  - `GET /api/route-points/{id}`
+  - `PUT /api/route-points/{id}`
+  - `PATCH /api/route-points/{id}/status`
+- Frontend Güzergahlar sayfası:
+  - aktif vardiya seçimi
+  - güzergah noktası listeleme
+  - nokta ekleme
+  - nokta düzenleme
+  - aktif/pasif yapma
+  - yukarı/aşağı taşıyarak sıralama
 
 ## Project Phases
 
@@ -268,4 +296,5 @@ Not: `BoardingRoutePointId` alanı Phase 8 RoutePoint modülü için nullable ol
 - Phase 5: Servis vardiyaları. Tamamlandı.
 - Phase 6: Şoförler. Tamamlandı.
 - Phase 7: Servis atamaları. Tamamlandı.
-- Phase 8: Güzergah noktaları.
+- Phase 8: Güzergah noktaları. Tamamlandı.
+- Phase 9: Harita ve geocoding.

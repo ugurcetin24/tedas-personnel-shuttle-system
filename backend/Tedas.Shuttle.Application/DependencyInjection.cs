@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<IShiftService, ShiftService>();
         services.AddScoped<IDriverService, DriverService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
+        services.AddScoped<IRoutePointService, RoutePointService>();
 
         return services;
     }

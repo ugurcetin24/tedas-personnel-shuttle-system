@@ -22,8 +22,12 @@ public interface IAssignmentRepository
 
     Task<int> GetActiveAssignmentCountAsync(Guid shiftId, CancellationToken cancellationToken);
 
+    Task<bool> RoutePointBelongsToShiftAsync(
+        Guid routePointId,
+        Guid shiftId,
+        CancellationToken cancellationToken);
+
     Task AddAsync(PersonnelAssignment assignment, CancellationToken cancellationToken);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
-
