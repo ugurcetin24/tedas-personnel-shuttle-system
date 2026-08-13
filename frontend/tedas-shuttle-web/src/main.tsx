@@ -6,6 +6,7 @@ import { RouterProvider } from 'react-router'
 import App from './App'
 import { appRouter } from './router/appRouter'
 import { appTheme } from './theme'
+import 'leaflet/dist/leaflet.css'
 import './styles/global.css'
 
 const queryClient = new QueryClient({

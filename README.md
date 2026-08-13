@@ -100,6 +100,12 @@ Health endpoint:
 /health
 ```
 
+Geocoding endpoint:
+
+```text
+GET /api/geocoding/search?query=Kizilay%20Ankara&limit=5
+```
+
 ## Frontend Commands
 
 ```bash
@@ -286,6 +292,25 @@ Phase 8 ile güzergah noktaları modülünün vertical slice'ı tamamlanmıştı
   - aktif/pasif yapma
   - yukarı/aşağı taşıyarak sıralama
 
+## Map And Geocoding Module
+
+Phase 9 ile harita ve adres arama entegrasyonunun ilk vertical slice'ı tamamlanmıştır:
+
+- Backend geocoding akışı:
+  - `IGeocodingService` application interface'i
+  - `NominatimGeocodingService` infrastructure implementation'ı
+  - `HttpClientFactory` kullanımı
+  - timeout, HTTP failure ve malformed JSON durumlarında kontrollü boş sonuç
+  - `ExternalServices:Nominatim:BaseUrl` configuration kullanımı
+- REST endpoint:
+  - `GET /api/geocoding/search`
+- Frontend Güzergahlar sayfası:
+  - Leaflet / OpenStreetMap harita paneli
+  - aktif güzergah noktalarını marker olarak gösterme
+  - aktif noktaları çizgi ile bağlama
+  - adres arama
+  - seçilen geocoding sonucunu route point formuna koordinat/adres olarak aktarma
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -297,4 +322,5 @@ Phase 8 ile güzergah noktaları modülünün vertical slice'ı tamamlanmıştı
 - Phase 6: Şoförler. Tamamlandı.
 - Phase 7: Servis atamaları. Tamamlandı.
 - Phase 8: Güzergah noktaları. Tamamlandı.
-- Phase 9: Harita ve geocoding.
+- Phase 9: Harita ve geocoding. Tamamlandı.
+- Phase 10: OSRM routing.

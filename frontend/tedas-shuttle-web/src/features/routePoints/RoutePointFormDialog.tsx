@@ -7,10 +7,16 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
+  List,
+  ListItemButton,
+  ListItemText,
+  Stack,
   TextField,
 } from '@mui/material'
+import Search from '@mui/icons-material/Search'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { useGeocodingSearch } from '../geocoding/useGeocoding'
 import { routePointFormSchema, type RoutePointFormSchema } from './routePointSchema'
 import type { RoutePointFormValues, RoutePointListItem } from './routePointTypes'
 
@@ -44,6 +50,7 @@ export function RoutePointFormDialog({
     resolver: zodResolver(routePointFormSchema),
     defaultValues,
   })
+  const geocodingSearch = useGeocodingSearch()
 
   useEffect(() => {
     if (!open) {
@@ -61,7 +68,18 @@ export function RoutePointFormDialog({
     }
 
     form.reset(defaultValues)
+    geocodingSearch.reset()
   }, [form, mode, open, routePoint])
+
+  function searchAddress() {
+    const address = form.getValues('address')
+    const name = form.getValues('name')
+    const query = address.trim() || name.trim()
+
+    if (query) {
+      geocodingSearch.mutate({ query })
+    }
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -70,6 +88,11 @@ export function RoutePointFormDialog({
         {errorMessage ? (
           <Alert severity="error" sx={{ mb: 2 }}>
             {errorMessage}
+          </Alert>
+        ) : null}
+        {geocodingSearch.isError ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Adres arama sirasinda hata olustu.
           </Alert>
         ) : null}
         <Grid
@@ -137,6 +160,36 @@ export function RoutePointFormDialog({
             />
           </Grid>
         </Grid>
+        <Stack spacing={1.5} sx={{ mt: 2 }}>
+          <Button
+            startIcon={<Search />}
+            variant="outlined"
+            onClick={searchAddress}
+            disabled={geocodingSearch.isPending}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Adres Ara
+          </Button>
+          {geocodingSearch.data?.length ? (
+            <List dense disablePadding sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+              {geocodingSearch.data.map((result) => (
+                <ListItemButton
+                  key={`${result.latitude}-${result.longitude}-${result.displayName}`}
+                  onClick={() => {
+                    form.setValue('address', result.displayName, { shouldDirty: true, shouldValidate: true })
+                    form.setValue('latitude', result.latitude, { shouldDirty: true, shouldValidate: true })
+                    form.setValue('longitude', result.longitude, { shouldDirty: true, shouldValidate: true })
+                  }}
+                >
+                  <ListItemText
+                    primary={result.displayName}
+                    secondary={`${result.latitude}, ${result.longitude}`}
+                  />
+                </ListItemButton>
+              ))}
+            </List>
+          ) : null}
+        </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Vazgec</Button>
@@ -147,4 +200,3 @@ export function RoutePointFormDialog({
     </Dialog>
   )
 }
-

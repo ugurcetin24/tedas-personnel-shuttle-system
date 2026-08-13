@@ -23,6 +23,8 @@ import {
   Tooltip,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
+import type { LatLngTuple } from 'leaflet'
 import { PageHeader } from '../components/PageHeader'
 import { RoutePointFormDialog } from '../features/routePoints/RoutePointFormDialog'
 import type { RoutePointFormValues, RoutePointListItem } from '../features/routePoints/routePointTypes'
@@ -60,6 +62,15 @@ export function RoutesPage() {
     updateRoutePointMutation.error ??
     updateStatusMutation.error ??
     reorderMutation.error
+  const routePoints = routePointsQuery.data ?? []
+  const activeRoutePoints = routePoints.filter((routePoint) => routePoint.isActive)
+  const mapCenter: LatLngTuple = activeRoutePoints.length
+    ? [activeRoutePoints[0].latitude, activeRoutePoints[0].longitude]
+    : [39.92077, 32.85411]
+  const polylinePositions: LatLngTuple[] = activeRoutePoints.map((routePoint) => [
+    routePoint.latitude,
+    routePoint.longitude,
+  ])
 
   function openCreateDialog() {
     setSelectedRoutePoint(null)
@@ -136,6 +147,35 @@ export function RoutesPage() {
       ) : null}
       {mutationError ? <Alert severity="error">{getApiErrorMessage(mutationError)}</Alert> : null}
 
+      <Paper variant="outlined" sx={{ borderRadius: 1, overflow: 'hidden' }}>
+        <MapContainer center={mapCenter} zoom={13} scrollWheelZoom style={{ height: 360, width: '100%' }}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <RouteMapViewport positions={polylinePositions} />
+          {polylinePositions.length > 1 ? (
+            <Polyline positions={polylinePositions} pathOptions={{ color: '#1769aa', weight: 4 }} />
+          ) : null}
+          {activeRoutePoints.map((routePoint) => (
+            <CircleMarker
+              key={routePoint.id}
+              center={[routePoint.latitude, routePoint.longitude]}
+              radius={8}
+              pathOptions={{ color: '#0b5e3c', fillColor: '#1f9d63', fillOpacity: 0.9 }}
+            >
+              <Popup>
+                <strong>
+                  {routePoint.order}. {routePoint.name}
+                </strong>
+                <br />
+                {routePoint.address ?? '-'}
+              </Popup>
+            </CircleMarker>
+          ))}
+        </MapContainer>
+      </Paper>
+
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1 }}>
         <Table size="small">
           <TableHead>
@@ -149,7 +189,7 @@ export function RoutesPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {routePointsQuery.data?.map((routePoint, index) => (
+            {routePoints.map((routePoint, index) => (
               <TableRow key={routePoint.id} hover>
                 <TableCell>{routePoint.order}</TableCell>
                 <TableCell>{routePoint.name}</TableCell>
@@ -177,7 +217,7 @@ export function RoutesPage() {
                     <span>
                       <IconButton
                         size="small"
-                        disabled={index === (routePointsQuery.data?.length ?? 0) - 1 || reorderMutation.isPending}
+                        disabled={index === routePoints.length - 1 || reorderMutation.isPending}
                         onClick={() => moveRoutePoint(index, 1)}
                       >
                         <ArrowDownward fontSize="small" />
@@ -205,7 +245,7 @@ export function RoutesPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {routePointsQuery.data?.length === 0 ? (
+            {routePoints.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   Guzergah noktasi bulunamadi.
@@ -239,3 +279,22 @@ function getShiftTypeLabel(value: number) {
   return shiftTypes.find((type) => type.value === value)?.label ?? '-'
 }
 
+function RouteMapViewport({ positions }: { positions: LatLngTuple[] }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (positions.length === 0) {
+      map.setView([39.92077, 32.85411], 13)
+      return
+    }
+
+    if (positions.length === 1) {
+      map.setView(positions[0], 14)
+      return
+    }
+
+    map.fitBounds(positions, { padding: [32, 32] })
+  }, [map, positions])
+
+  return null
+}
