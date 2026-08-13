@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tedas.Shuttle.Application.Interfaces;
 using Tedas.Shuttle.Infrastructure.Persistence;
+using Tedas.Shuttle.Infrastructure.Repositories;
 
 namespace Tedas.Shuttle.Infrastructure;
 
@@ -25,6 +27,8 @@ public static class DependencyInjection
 
             options.UseSqlite(connectionString);
         });
+
+        services.AddScoped<IPersonnelRepository, PersonnelRepository>();
 
         return services;
     }

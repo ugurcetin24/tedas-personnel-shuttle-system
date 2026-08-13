@@ -8,6 +8,7 @@ public static class ApiServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddControllers();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
         {

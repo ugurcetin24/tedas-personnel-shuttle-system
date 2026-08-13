@@ -37,6 +37,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors(ApiServiceCollectionExtensions.FrontendCorsPolicy);
 
+app.MapControllers();
 app.MapHealthEndpoints();
 
 app.MigrateDatabase();

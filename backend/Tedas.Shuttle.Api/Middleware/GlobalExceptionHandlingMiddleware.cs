@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using FluentValidation;
+using Tedas.Shuttle.Application.Common;
 
 namespace Tedas.Shuttle.Api.Middleware;
 
@@ -15,19 +17,45 @@ public sealed class GlobalExceptionHandlingMiddleware(
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Unhandled API exception.");
+            var (statusCode, title, code, detail) = exception switch
+            {
+                ValidationException validationException => (
+                    StatusCodes.Status400BadRequest,
+                    "Validation failed.",
+                    "VALIDATION_ERROR",
+                    string.Join(" ", validationException.Errors.Select(error => error.ErrorMessage))),
+                BusinessConflictException conflictException => (
+                    StatusCodes.Status409Conflict,
+                    conflictException.Message,
+                    conflictException.Code,
+                    (string?)null),
+                _ => (
+                    StatusCodes.Status500InternalServerError,
+                    "Beklenmeyen bir hata olustu.",
+                    "UNEXPECTED_ERROR",
+                    environment.IsDevelopment() ? exception.Message : null)
+            };
+
+            if (statusCode >= StatusCodes.Status500InternalServerError)
+            {
+                logger.LogError(exception, "Unhandled API exception.");
+            }
+            else
+            {
+                logger.LogWarning("Handled API exception. Code: {Code}. Message: {Message}", code, exception.Message);
+            }
 
             var problemDetails = new ProblemDetails
             {
-                Title = "Beklenmeyen bir hata olustu.",
-                Status = StatusCodes.Status500InternalServerError,
-                Detail = environment.IsDevelopment() ? exception.Message : null,
+                Title = title,
+                Status = statusCode,
+                Detail = detail,
                 Instance = context.Request.Path
             };
 
-            problemDetails.Extensions["code"] = "UNEXPECTED_ERROR";
+            problemDetails.Extensions["code"] = code;
 
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/problem+json";
 
             await context.Response.WriteAsJsonAsync(problemDetails);

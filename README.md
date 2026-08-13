@@ -81,6 +81,13 @@ dotnet test TedasPersonnelShuttleSystem.sln --no-build
 dotnet run --project backend/Tedas.Shuttle.Api/Tedas.Shuttle.Api.csproj
 ```
 
+EF Core migration komutları:
+
+```bash
+dotnet ef migrations add InitialPersonnel --project backend/Tedas.Shuttle.Infrastructure/Tedas.Shuttle.Infrastructure.csproj --startup-project backend/Tedas.Shuttle.Api/Tedas.Shuttle.Api.csproj --output-dir Persistence/Migrations
+dotnet ef database update --project backend/Tedas.Shuttle.Infrastructure/Tedas.Shuttle.Infrastructure.csproj --startup-project backend/Tedas.Shuttle.Api/Tedas.Shuttle.Api.csproj
+```
+
 Development ortamında Swagger UI:
 
 ```text
@@ -121,11 +128,35 @@ Bu liste `Cors:AllowedOrigins` üzerinden değiştirilebilir.
 
 ## Database Migration Strategy
 
-Phase 1'de `AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. İlk domain entity'leri Phase 3 ile eklendiğinde EF Core migration dosyaları bu altyapı üzerinden üretilecektir.
+`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel` migration dosyası eklenmiştir.
+
+## Personnel Module
+
+Phase 3 ile Personel modülünün ilk vertical slice'ı tamamlanmıştır:
+
+- `Personnel` domain entity'si.
+- EF Core tablo konfigürasyonu, unique `RegistrationNumber` index'i ve sık kullanılan alan index'leri.
+- `InitialPersonnel` migration.
+- DTO, validation, repository interface ve application service.
+- REST endpointleri:
+  - `GET /api/personnel`
+  - `GET /api/personnel/{id}`
+  - `POST /api/personnel`
+  - `PUT /api/personnel/{id}`
+  - `PATCH /api/personnel/{id}/status`
+- Frontend Personeller sayfası:
+  - listeleme
+  - pagination
+  - arama
+  - aktif/pasif filtresi
+  - ekleme
+  - düzenleme
+  - aktif/pasif yapma
 
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
 - Phase 1: Backend foundation. Tamamlandı.
 - Phase 2: Frontend foundation. Tamamlandı.
-- Phase 3: Personel modülünün ilk vertical slice'ı.
+- Phase 3: Personel modülünün ilk vertical slice'ı. Tamamlandı.
+- Phase 4: Servisler modülü.
