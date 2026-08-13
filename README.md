@@ -14,9 +14,19 @@ Backend pragmatik katmanlı mimari ile kurulmuştur:
 - `Tedas.Shuttle.Api`: ASP.NET Core Web API, middleware, DI ve HTTP endpointleri.
 - `Tedas.Shuttle.Tests`: xUnit testleri.
 
-Frontend klasörü Phase 2 için ayrılmıştır; bu aşamada React uygulaması henüz oluşturulmamaktadır.
+Frontend feature-based React yapısıyla kurulmuştur:
+
+- `src/api`: merkezi Axios client ve API fonksiyonları.
+- `src/components`: ortak UI parçaları.
+- `src/hooks`: reusable React hooks.
+- `src/layouts`: ana uygulama layout'u.
+- `src/pages`: route sayfaları.
+- `src/router`: React Router yapılandırması.
+- `src/styles`: global CSS.
 
 ## Technologies
+
+Backend:
 
 - .NET 10
 - ASP.NET Core Web API
@@ -26,6 +36,19 @@ Frontend klasörü Phase 2 için ayrılmıştır; bu aşamada React uygulaması 
 - FluentValidation
 - Swagger / OpenAPI
 - xUnit
+
+Frontend:
+
+- React 19
+- TypeScript
+- Vite
+- React Router
+- TanStack Query
+- Material UI
+- Axios
+- React Hook Form
+- Zod
+- Leaflet / React Leaflet
 
 ## Data And Logging
 
@@ -49,7 +72,7 @@ Loglar:
 
 Path çözümleme `IApplicationDataPathProvider` üzerinden tek noktadan yapılır. `ConnectionStrings:Default` verilirse API bu connection string'i kullanır; verilmezse local app data altındaki SQLite dosyasına gider.
 
-## Development Commands
+## Backend Commands
 
 ```bash
 dotnet restore TedasPersonnelShuttleSystem.sln
@@ -70,6 +93,32 @@ Health endpoint:
 /health
 ```
 
+## Frontend Commands
+
+```bash
+cd frontend/tedas-shuttle-web
+npm install
+npm run build
+npm run dev
+```
+
+Frontend backend adresini `VITE_API_BASE_URL` ile okur. Örnek değer:
+
+```text
+VITE_API_BASE_URL=http://localhost:5284
+```
+
+## CORS
+
+API varsayılan olarak Vite development originleri için CORS izni içerir:
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
+```
+
+Bu liste `Cors:AllowedOrigins` üzerinden değiştirilebilir.
+
 ## Database Migration Strategy
 
 Phase 1'de `AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. İlk domain entity'leri Phase 3 ile eklendiğinde EF Core migration dosyaları bu altyapı üzerinden üretilecektir.
@@ -78,5 +127,5 @@ Phase 1'de `AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcın
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
 - Phase 1: Backend foundation. Tamamlandı.
-- Phase 2: Frontend foundation. Kullanıcı onayı olmadan başlatılmayacak.
+- Phase 2: Frontend foundation. Tamamlandı.
 - Phase 3: Personel modülünün ilk vertical slice'ı.

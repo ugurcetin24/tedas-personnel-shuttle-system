@@ -22,7 +22,7 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddApiServices();
+builder.Services.AddApiServices(builder.Configuration);
 
 var app = builder.Build();
 
@@ -35,6 +35,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(ApiServiceCollectionExtensions.FrontendCorsPolicy);
 
 app.MapHealthEndpoints();
 
