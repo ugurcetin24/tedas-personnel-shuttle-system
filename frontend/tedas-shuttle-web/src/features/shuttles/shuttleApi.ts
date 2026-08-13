@@ -16,6 +16,12 @@ export async function searchShuttles(query: ShuttleQuery) {
   return response.data
 }
 
+export async function getShuttle(id: string) {
+  const response = await apiClient.get<Shuttle>(`/api/shuttles/${id}`)
+
+  return response.data
+}
+
 export async function createShuttle(values: ShuttleFormValues) {
   const response = await apiClient.post<Shuttle>('/api/shuttles', toApiPayload(values))
 

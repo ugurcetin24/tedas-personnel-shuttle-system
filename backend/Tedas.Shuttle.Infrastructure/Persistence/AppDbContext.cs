@@ -9,6 +9,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<PhysicalShuttle> PhysicalShuttles => Set<PhysicalShuttle>();
 
+    public DbSet<ShuttleShift> ShuttleShifts => Set<ShuttleShift>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -16,6 +16,10 @@ public sealed class PhysicalShuttle
 
     public DateTimeOffset? UpdatedAt { get; private set; }
 
+    public IReadOnlyCollection<ShuttleShift> Shifts => _shifts.AsReadOnly();
+
+    private readonly List<ShuttleShift> _shifts = [];
+
     private PhysicalShuttle()
     {
     }

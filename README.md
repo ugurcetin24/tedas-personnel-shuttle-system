@@ -128,7 +128,7 @@ Bu liste `Cors:AllowedOrigins` üzerinden değiştirilebilir.
 
 ## Database Migration Strategy
 
-`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel` migration dosyası eklenmiştir.
+`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts` migration dosyaları eklenmiştir.
 
 ## Personnel Module
 
@@ -176,7 +176,30 @@ Phase 4 ile fiziksel servis araçları modülünün vertical slice'ı tamamlanm�
   - servis düzenleme
   - aktif/pasif yapma
 
-Servise bağlı vardiya yönetimi Phase 5 kapsamındadır.
+## Shuttle Shift Module
+
+Phase 5 ile servis vardiyaları modülünün vertical slice'ı tamamlanmıştır:
+
+- `ShuttleShift` domain entity'si ve `ShiftType` enum'u.
+- `PhysicalShuttle` ile bire çok vardiya ilişkisi.
+- EF Core tablo konfigürasyonu, `PhysicalShuttleId` / `IsActive` index'leri ve `AddShuttleShifts` migration.
+- DTO, validation, repository interface ve application service.
+- Kapasite güncellemede mevcut doluluğun altına düşmeyi engelleyen business rule.
+- REST endpointleri:
+  - `GET /api/shuttles/{shuttleId}/shifts`
+  - `POST /api/shuttles/{shuttleId}/shifts`
+  - `GET /api/shifts/{id}`
+  - `PUT /api/shifts/{id}`
+  - `PATCH /api/shifts/{id}/status`
+- Frontend Servis Detay sayfası:
+  - servis özeti
+  - vardiya listeleme
+  - vardiya ekleme
+  - vardiya düzenleme
+  - aktif/pasif yapma
+  - kapasite, doluluk ve boş koltuk gösterimi
+
+Not: Personel-servis atama modülü henüz uygulanmadığı için repository tarafındaki aktif doluluk sayımı Phase 7'ye hazır bir genişleme noktası olarak şimdilik `0` döner.
 
 ## Project Phases
 
@@ -185,4 +208,5 @@ Servise bağlı vardiya yönetimi Phase 5 kapsamındadır.
 - Phase 2: Frontend foundation. Tamamlandı.
 - Phase 3: Personel modülünün ilk vertical slice'ı. Tamamlandı.
 - Phase 4: Servisler modülü. Tamamlandı.
-- Phase 5: Servis vardiyaları.
+- Phase 5: Servis vardiyaları. Tamamlandı.
+- Phase 6: Şoförler.

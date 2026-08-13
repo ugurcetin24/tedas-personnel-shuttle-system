@@ -6,6 +6,7 @@ import { DriversPage } from '../pages/DriversPage'
 import { ImportsPage } from '../pages/ImportsPage'
 import { PersonnelPage } from '../pages/PersonnelPage'
 import { RoutesPage } from '../pages/RoutesPage'
+import { ShuttleDetailsPage } from '../pages/ShuttleDetailsPage'
 import { ShuttlesPage } from '../pages/ShuttlesPage'
 
 export const appRouter = createBrowserRouter([
@@ -16,6 +17,7 @@ export const appRouter = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: 'personnel', element: <PersonnelPage /> },
       { path: 'shuttles', element: <ShuttlesPage /> },
+      { path: 'shuttles/:id', element: <ShuttleDetailsPage /> },
       { path: 'drivers', element: <DriversPage /> },
       { path: 'assignments', element: <AssignmentsPage /> },
       { path: 'routes', element: <RoutesPage /> },

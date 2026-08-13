@@ -1,5 +1,6 @@
 import Add from '@mui/icons-material/Add'
 import Edit from '@mui/icons-material/Edit'
+import Visibility from '@mui/icons-material/Visibility'
 import {
   Alert,
   Button,
@@ -23,6 +24,7 @@ import {
   Tooltip,
 } from '@mui/material'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import { PageHeader } from '../components/PageHeader'
 import { ShuttleFormDialog } from '../features/shuttles/ShuttleFormDialog'
 import type { ShuttleFormValues, ShuttleListItem } from '../features/shuttles/shuttleTypes'
@@ -184,6 +186,11 @@ export function ShuttlesPage() {
                   />
                 </TableCell>
                 <TableCell align="right">
+                  <Tooltip title="Vardiyalar">
+                    <IconButton component={Link} to={`/shuttles/${shuttle.id}`} size="small">
+                      <Visibility fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Düzenle">
                     <IconButton size="small" onClick={() => openEditDialog(shuttle)}>
                       <Edit fontSize="small" />

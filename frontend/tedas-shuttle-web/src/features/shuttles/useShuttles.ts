@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createShuttle,
+  getShuttle,
   searchShuttles,
   updateShuttle,
   updateShuttleStatus,
@@ -11,6 +12,14 @@ export function useShuttles(query: ShuttleQuery) {
   return useQuery({
     queryKey: ['shuttles', query],
     queryFn: () => searchShuttles(query),
+  })
+}
+
+export function useShuttle(id: string | undefined) {
+  return useQuery({
+    queryKey: ['shuttles', id],
+    queryFn: () => getShuttle(id ?? ''),
+    enabled: !!id,
   })
 }
 
