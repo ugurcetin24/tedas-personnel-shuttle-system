@@ -57,7 +57,9 @@ public sealed class ShiftRepository(AppDbContext dbContext) : IShiftRepository
 
     public Task<int> GetActiveAssignmentCountAsync(Guid shiftId, CancellationToken cancellationToken)
     {
-        return Task.FromResult(0);
+        return dbContext.PersonnelAssignments.CountAsync(
+            assignment => assignment.ShuttleShiftId == shiftId && assignment.IsActive,
+            cancellationToken);
     }
 
     public async Task AddAsync(ShuttleShift shift, CancellationToken cancellationToken)

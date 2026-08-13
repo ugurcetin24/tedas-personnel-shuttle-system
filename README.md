@@ -128,7 +128,7 @@ Bu liste `Cors:AllowedOrigins` üzerinden değiştirilebilir.
 
 ## Database Migration Strategy
 
-`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts`, Phase 6 ile `AddDrivers` migration dosyaları eklenmiştir.
+`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts`, Phase 6 ile `AddDrivers`, Phase 7 ile `AddPersonnelAssignments` migration dosyaları eklenmiştir.
 
 ## Personnel Module
 
@@ -228,6 +228,36 @@ Phase 6 ile şoför modülünün vertical slice'ı tamamlanmıştır:
   - vardiya ilişkilendirme
   - vardiya ilişkisini kaldırma
 
+## Assignment Module
+
+Phase 7 ile servis atamaları modülünün vertical slice'ı tamamlanmıştır:
+
+- `PersonnelAssignment` domain entity'si.
+- Aktif personel için aynı anda tek aktif servis ataması kuralı.
+- EF Core tablo konfigürasyonu, `PersonnelId` için aktif kayıtlarda unique index ve `ShuttleShiftId` / `IsActive` index'leri.
+- `AddPersonnelAssignments` migration.
+- DTO, validation, repository interface ve application service.
+- Backend business rule kontrolleri:
+  - pasif personel atanamaz
+  - pasif servis atanamaz
+  - pasif vardiya atanamaz
+  - aynı personel için duplicate aktif atama oluşturulamaz
+  - kapasitesi dolu vardiyaya yeni atama yapılamaz
+- REST endpointleri:
+  - `GET /api/assignments`
+  - `GET /api/assignments/{id}`
+  - `POST /api/assignments`
+  - `DELETE /api/assignments/{id}`
+- Frontend Servis Atamaları sayfası:
+  - listeleme
+  - arama
+  - aktif/pasif filtresi
+  - aktif personel ve aktif vardiya ile atama başlatma
+  - atamayı pasife alma
+  - vardiya doluluk bilgisini gösterme
+
+Not: `BoardingRoutePointId` alanı Phase 8 RoutePoint modülü için nullable olarak hazırlandı. RoutePoint entity'si henüz bulunmadığı için bu fazda biniş noktası FK doğrulaması uygulanmadı.
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -237,4 +267,5 @@ Phase 6 ile şoför modülünün vertical slice'ı tamamlanmıştır:
 - Phase 4: Servisler modülü. Tamamlandı.
 - Phase 5: Servis vardiyaları. Tamamlandı.
 - Phase 6: Şoförler. Tamamlandı.
-- Phase 7: Servis atamaları.
+- Phase 7: Servis atamaları. Tamamlandı.
+- Phase 8: Güzergah noktaları.

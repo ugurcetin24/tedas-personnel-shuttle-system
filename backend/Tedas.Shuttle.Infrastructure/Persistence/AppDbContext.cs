@@ -13,6 +13,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<Driver> Drivers => Set<Driver>();
 
+    public DbSet<PersonnelAssignment> PersonnelAssignments => Set<PersonnelAssignment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
