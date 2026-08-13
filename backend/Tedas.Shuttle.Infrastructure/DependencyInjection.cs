@@ -29,6 +29,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IPersonnelRepository, PersonnelRepository>();
+        services.AddScoped<IShuttleRepository, ShuttleRepository>();
 
         return services;
     }

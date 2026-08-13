@@ -7,6 +7,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 {
     public DbSet<Personnel> Personnel => Set<Personnel>();
 
+    public DbSet<PhysicalShuttle> PhysicalShuttles => Set<PhysicalShuttle>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

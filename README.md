@@ -153,10 +153,36 @@ Phase 3 ile Personel modülünün ilk vertical slice'ı tamamlanmıştır:
   - düzenleme
   - aktif/pasif yapma
 
+## Shuttle Module
+
+Phase 4 ile fiziksel servis araçları modülünün vertical slice'ı tamamlanmıştır:
+
+- `PhysicalShuttle` domain entity'si.
+- EF Core tablo konfigürasyonu, unique `Code` index'i ve `PlateNumber` / `IsActive` index'leri.
+- `AddPhysicalShuttles` migration.
+- DTO, validation, repository interface ve application service.
+- REST endpointleri:
+  - `GET /api/shuttles`
+  - `GET /api/shuttles/{id}`
+  - `POST /api/shuttles`
+  - `PUT /api/shuttles/{id}`
+  - `PATCH /api/shuttles/{id}/status`
+- Frontend Servisler sayfası:
+  - listeleme
+  - servis kodu ile arama
+  - plaka ile arama
+  - aktif/pasif filtresi
+  - servis ekleme
+  - servis düzenleme
+  - aktif/pasif yapma
+
+Servise bağlı vardiya yönetimi Phase 5 kapsamındadır.
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
 - Phase 1: Backend foundation. Tamamlandı.
 - Phase 2: Frontend foundation. Tamamlandı.
 - Phase 3: Personel modülünün ilk vertical slice'ı. Tamamlandı.
-- Phase 4: Servisler modülü.
+- Phase 4: Servisler modülü. Tamamlandı.
+- Phase 5: Servis vardiyaları.

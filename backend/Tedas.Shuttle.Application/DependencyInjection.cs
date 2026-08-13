@@ -10,6 +10,7 @@ public static class DependencyInjection
     {
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped<IPersonnelService, PersonnelService>();
+        services.AddScoped<IShuttleService, ShuttleService>();
 
         return services;
     }
