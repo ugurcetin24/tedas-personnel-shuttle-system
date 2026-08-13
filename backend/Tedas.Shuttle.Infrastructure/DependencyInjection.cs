@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IPersonnelRepository, PersonnelRepository>();
         services.AddScoped<IShuttleRepository, ShuttleRepository>();
         services.AddScoped<IShiftRepository, ShiftRepository>();
+        services.AddScoped<IDriverRepository, DriverRepository>();
 
         return services;
     }

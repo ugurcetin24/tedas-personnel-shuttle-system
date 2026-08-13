@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createShift, listShifts, updateShift, updateShiftStatus } from './shiftApi'
+import { createShift, listAllShifts, listShifts, updateShift, updateShiftStatus } from './shiftApi'
 import type { ShiftFormValues } from './shiftTypes'
 
 export function useShifts(shuttleId: string | undefined) {
@@ -7,6 +7,13 @@ export function useShifts(shuttleId: string | undefined) {
     queryKey: ['shifts', shuttleId],
     queryFn: () => listShifts(shuttleId ?? ''),
     enabled: !!shuttleId,
+  })
+}
+
+export function useAllShifts(isActive?: boolean) {
+  return useQuery({
+    queryKey: ['shifts', 'all', isActive],
+    queryFn: () => listAllShifts(isActive),
   })
 }
 
@@ -38,4 +45,3 @@ export function useUpdateShiftStatus(shuttleId: string | undefined) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shifts', shuttleId] }),
   })
 }
-

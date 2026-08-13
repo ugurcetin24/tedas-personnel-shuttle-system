@@ -4,6 +4,10 @@ namespace Tedas.Shuttle.Application.Services;
 
 public interface IShiftService
 {
+    Task<IReadOnlyList<ShiftListItemDto>> ListAsync(
+        bool? isActive,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ShiftListItemDto>?> ListByShuttleAsync(
         Guid physicalShuttleId,
         CancellationToken cancellationToken);

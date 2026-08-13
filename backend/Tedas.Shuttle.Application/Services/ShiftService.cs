@@ -12,6 +12,22 @@ public sealed class ShiftService(
     IValidator<UpdateShiftRequest> updateValidator)
     : IShiftService
 {
+    public async Task<IReadOnlyList<ShiftListItemDto>> ListAsync(
+        bool? isActive,
+        CancellationToken cancellationToken)
+    {
+        var shifts = await shiftRepository.ListAsync(isActive, cancellationToken);
+        var items = new List<ShiftListItemDto>(shifts.Count);
+
+        foreach (var shift in shifts)
+        {
+            var occupancy = await shiftRepository.GetActiveAssignmentCountAsync(shift.Id, cancellationToken);
+            items.Add(MapListItem(shift, occupancy));
+        }
+
+        return items;
+    }
+
     public async Task<IReadOnlyList<ShiftListItemDto>?> ListByShuttleAsync(
         Guid physicalShuttleId,
         CancellationToken cancellationToken)

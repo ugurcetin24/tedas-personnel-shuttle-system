@@ -7,6 +7,14 @@ export async function listShifts(shuttleId: string) {
   return response.data
 }
 
+export async function listAllShifts(isActive?: boolean) {
+  const response = await apiClient.get<ShiftListItem[]>('/api/shifts', {
+    params: { isActive },
+  })
+
+  return response.data
+}
+
 export async function createShift(shuttleId: string, values: ShiftFormValues) {
   const response = await apiClient.post<Shift>(
     `/api/shuttles/${shuttleId}/shifts`,
@@ -39,4 +47,3 @@ function toApiPayload(values: ShiftFormValues) {
 function normalizeTime(value: string) {
   return value.length === 5 ? `${value}:00` : value
 }
-

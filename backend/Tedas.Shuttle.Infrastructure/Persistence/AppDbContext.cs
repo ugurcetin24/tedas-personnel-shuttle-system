@@ -11,6 +11,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<ShuttleShift> ShuttleShifts => Set<ShuttleShift>();
 
+    public DbSet<Driver> Drivers => Set<Driver>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

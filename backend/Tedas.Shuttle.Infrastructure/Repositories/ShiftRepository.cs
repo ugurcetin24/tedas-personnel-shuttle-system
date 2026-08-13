@@ -7,6 +7,27 @@ namespace Tedas.Shuttle.Infrastructure.Repositories;
 
 public sealed class ShiftRepository(AppDbContext dbContext) : IShiftRepository
 {
+    public async Task<IReadOnlyList<ShuttleShift>> ListAsync(
+        bool? isActive,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.ShuttleShifts
+            .AsNoTracking()
+            .Include(shift => shift.PhysicalShuttle)
+            .AsQueryable();
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(shift => shift.IsActive == isActive.Value);
+        }
+
+        return await query
+            .OrderBy(shift => shift.PhysicalShuttle!.Code)
+            .ThenBy(shift => shift.StartTime)
+            .ThenBy(shift => shift.Name)
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ShuttleShift>> ListByShuttleAsync(
         Guid physicalShuttleId,
         CancellationToken cancellationToken)

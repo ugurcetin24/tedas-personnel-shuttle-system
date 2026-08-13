@@ -133,6 +133,17 @@ public sealed class ShiftServiceTests
             _occupancyByShiftId[shiftId] = occupancy;
         }
 
+        public Task<IReadOnlyList<ShuttleShift>> ListAsync(
+            bool? isActive,
+            CancellationToken cancellationToken)
+        {
+            var shifts = _shifts
+                .Where(shift => !isActive.HasValue || shift.IsActive == isActive.Value)
+                .ToArray();
+
+            return Task.FromResult<IReadOnlyList<ShuttleShift>>(shifts);
+        }
+
         public Task<IReadOnlyList<ShuttleShift>> ListByShuttleAsync(
             Guid physicalShuttleId,
             CancellationToken cancellationToken)

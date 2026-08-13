@@ -128,7 +128,7 @@ Bu liste `Cors:AllowedOrigins` üzerinden değiştirilebilir.
 
 ## Database Migration Strategy
 
-`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts` migration dosyaları eklenmiştir.
+`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts`, Phase 6 ile `AddDrivers` migration dosyaları eklenmiştir.
 
 ## Personnel Module
 
@@ -201,6 +201,33 @@ Phase 5 ile servis vardiyaları modülünün vertical slice'ı tamamlanmıştır
 
 Not: Personel-servis atama modülü henüz uygulanmadığı için repository tarafındaki aktif doluluk sayımı Phase 7'ye hazır bir genişleme noktası olarak şimdilik `0` döner.
 
+## Driver Module
+
+Phase 6 ile şoför modülünün vertical slice'ı tamamlanmıştır:
+
+- `Driver` domain entity'si.
+- Şoför ile servis vardiyası arasında optional bire bir ilişki.
+- İlişki kararı: Şoför ataması fiziksel servis yerine `ShuttleShift` üzerinden tutulur; böylece aynı servis aracının sabah/akşam vardiyaları ayrı operasyonel atama olarak yönetilebilir.
+- EF Core tablo konfigürasyonu, unique `LicenseNumber` index'i, nullable unique `ShuttleShiftId` index'i ve `AddDrivers` migration.
+- DTO, validation, repository interface ve application service.
+- REST endpointleri:
+  - `GET /api/drivers`
+  - `GET /api/drivers/{id}`
+  - `POST /api/drivers`
+  - `PUT /api/drivers/{id}`
+  - `PATCH /api/drivers/{id}/status`
+  - `PATCH /api/drivers/{id}/shift-assignment`
+  - `GET /api/shifts`
+- Frontend Şoförler sayfası:
+  - listeleme
+  - arama
+  - aktif/pasif filtresi
+  - şoför ekleme
+  - şoför düzenleme
+  - aktif/pasif yapma
+  - vardiya ilişkilendirme
+  - vardiya ilişkisini kaldırma
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -209,4 +236,5 @@ Not: Personel-servis atama modülü henüz uygulanmadığı için repository tar
 - Phase 3: Personel modülünün ilk vertical slice'ı. Tamamlandı.
 - Phase 4: Servisler modülü. Tamamlandı.
 - Phase 5: Servis vardiyaları. Tamamlandı.
-- Phase 6: Şoförler.
+- Phase 6: Şoförler. Tamamlandı.
+- Phase 7: Servis atamaları.

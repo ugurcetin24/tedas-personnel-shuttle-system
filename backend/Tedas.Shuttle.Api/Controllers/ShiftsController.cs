@@ -7,6 +7,16 @@ namespace Tedas.Shuttle.Api.Controllers;
 [ApiController]
 public sealed class ShiftsController(IShiftService shiftService) : ControllerBase
 {
+    [HttpGet("api/shifts")]
+    public async Task<IActionResult> List(
+        [FromQuery] bool? isActive = null,
+        CancellationToken cancellationToken = default)
+    {
+        var shifts = await shiftService.ListAsync(isActive, cancellationToken);
+
+        return Ok(shifts);
+    }
+
     [HttpGet("api/shuttles/{shuttleId:guid}/shifts")]
     public async Task<IActionResult> ListByShuttle(
         Guid shuttleId,
