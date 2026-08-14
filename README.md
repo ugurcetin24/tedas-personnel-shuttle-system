@@ -118,6 +118,7 @@ Excel preview endpoint:
 
 ```text
 POST /api/imports/personnel/preview
+POST /api/imports/personnel/commit
 ```
 
 ## Frontend Commands
@@ -384,6 +385,29 @@ Phase 11 ile Excel import altyapısının ilk çekirdeği tamamlanmıştır:
 
 Not: Phase 11 bilinçli olarak database commit yapmaz. Preview + conflict detection + transaction commit Phase 12 kapsamındadır.
 
+## Personnel Excel Import Module
+
+Phase 12 ile personel Excel import akışı tamamlanmıştır:
+
+- Personel preview artık conflict detection içerir:
+  - Excel içindeki duplicate sicil numarası `Conflict`
+  - sistemde olmayan sicil `Create`
+  - sistemde olan ve farklı veri taşıyan sicil `Update`
+  - sistemde olan ve aynı veri taşıyan sicil `NoChange`
+  - hatalı satır `Skip`
+- Personel import commit endpointi:
+  - `POST /api/imports/personnel/commit`
+- Commit davranışı:
+  - preview içinde hata varsa commit reddedilir
+  - create/update işlemleri EF Core transaction içinde yapılır
+  - aynı Excel tekrar import edildiğinde duplicate personel oluşturmaz
+  - conflict veya eksik zorunlu alan bulunan dosya database'e yazılmaz
+- Frontend Excel Aktarım sayfası:
+  - preview sonucunda aksiyon kolonunu gösterir
+  - yeni/güncelleme/hata sayaçlarını gösterir
+  - hatasız preview için içeri aktarma butonunu aktif eder
+  - commit sonucunda oluşturulan, güncellenen ve atlanan satır özetini gösterir
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -398,4 +422,5 @@ Not: Phase 11 bilinçli olarak database commit yapmaz. Preview + conflict detect
 - Phase 9: Harita ve geocoding. Tamamlandı.
 - Phase 10: OSRM routing. Tamamlandı.
 - Phase 11: Excel import/export core. Tamamlandı.
-- Phase 12: Personnel import preview, conflict detection ve transaction commit. Sıradaki faz.
+- Phase 12: Personnel import preview, conflict detection ve transaction commit. Tamamlandı.
+- Phase 13: Shuttle capacity import. Sıradaki faz.

@@ -17,13 +17,15 @@ import {
 import type { ChangeEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
-import type { ImportStatus } from '../features/imports/importTypes'
-import { usePreviewPersonnelImport } from '../features/imports/useImports'
+import type { ImportAction, ImportStatus } from '../features/imports/importTypes'
+import { useCommitPersonnelImport, usePreviewPersonnelImport } from '../features/imports/useImports'
 import { getApiErrorMessage } from '../utils/apiErrors'
 
 export function ImportsPage() {
   const [selectedFileName, setSelectedFileName] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const previewMutation = usePreviewPersonnelImport()
+  const commitMutation = useCommitPersonnelImport()
   const preview = previewMutation.data
   const visibleRows = preview?.rows.slice(0, 50) ?? []
   const previewStats = useMemo(() => {
@@ -33,8 +35,12 @@ export function ImportsPage() {
       valid: rows.filter((row) => row.status === 'Valid').length,
       warning: rows.filter((row) => row.status === 'Warning').length,
       error: rows.filter((row) => row.status === 'Error').length,
+      create: rows.filter((row) => row.action === 'Create').length,
+      update: rows.filter((row) => row.action === 'Update').length,
+      noChange: rows.filter((row) => row.action === 'NoChange').length,
     }
   }, [preview?.rows])
+  const canCommit = !!selectedFile && !!preview && previewStats.error === 0 && preview.rows.length > 0
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -45,17 +51,34 @@ export function ImportsPage() {
     }
 
     setSelectedFileName(file.name)
+    setSelectedFile(file)
+    commitMutation.reset()
     previewMutation.mutate(file)
+  }
+
+  function handleCommit() {
+    if (selectedFile) {
+      commitMutation.mutate(selectedFile)
+    }
   }
 
   return (
     <Stack spacing={3}>
       <Stack direction={{ xs: 'column', md: 'row' }} sx={{ justifyContent: 'space-between', gap: 2 }}>
         <PageHeader title="Excel Aktarim" />
-        <Button component="label" variant="contained" startIcon={<CloudUpload />}>
-          Dosya Sec
-          <input hidden type="file" accept=".xlsx,.xlsm" onChange={handleFileChange} />
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button component="label" variant="outlined" startIcon={<CloudUpload />}>
+            Dosya Sec
+            <input hidden type="file" accept=".xlsx,.xlsm" onChange={handleFileChange} />
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!canCommit || commitMutation.isPending}
+            onClick={handleCommit}
+          >
+            Iceri Aktar
+          </Button>
+        </Stack>
       </Stack>
 
       <Paper variant="outlined" sx={{ borderRadius: 1, p: 2 }}>
@@ -72,6 +95,8 @@ export function ImportsPage() {
                 <Chip size="small" color="success" variant="outlined" label={`Gecerli ${previewStats.valid}`} />
                 <Chip size="small" color="warning" variant="outlined" label={`Uyari ${previewStats.warning}`} />
                 <Chip size="small" color="error" variant="outlined" label={`Hata ${previewStats.error}`} />
+                <Chip size="small" variant="outlined" label={`Yeni ${previewStats.create}`} />
+                <Chip size="small" variant="outlined" label={`Guncelleme ${previewStats.update}`} />
               </Stack>
             ) : null}
           </Stack>
@@ -79,6 +104,15 @@ export function ImportsPage() {
           {previewMutation.isPending ? <Alert severity="info">Excel dosyasi okunuyor.</Alert> : null}
           {previewMutation.isError ? (
             <Alert severity="error">{getApiErrorMessage(previewMutation.error)}</Alert>
+          ) : null}
+          {commitMutation.isError ? (
+            <Alert severity="error">{getApiErrorMessage(commitMutation.error)}</Alert>
+          ) : null}
+          {commitMutation.data ? (
+            <Alert severity="success">
+              {commitMutation.data.createdCount} yeni, {commitMutation.data.updatedCount} guncelleme,{' '}
+              {commitMutation.data.skippedCount} atlanan satir islendi.
+            </Alert>
           ) : null}
 
           {preview ? (
@@ -102,6 +136,7 @@ export function ImportsPage() {
                     <TableRow>
                       <TableCell width={96}>Satir</TableCell>
                       <TableCell width={120}>Durum</TableCell>
+                      <TableCell width={128}>Aksiyon</TableCell>
                       <TableCell>Sicil</TableCell>
                       <TableCell>Ad Soyad</TableCell>
                       <TableCell>Birim</TableCell>
@@ -120,6 +155,7 @@ export function ImportsPage() {
                             label={getStatusLabel(row.status)}
                           />
                         </TableCell>
+                        <TableCell>{getActionLabel(row.action)}</TableCell>
                         <TableCell>{row.normalizedData.RegistrationNumber ?? '-'}</TableCell>
                         <TableCell>
                           {[row.normalizedData.FirstName, row.normalizedData.LastName].filter(Boolean).join(' ') ||
@@ -131,7 +167,7 @@ export function ImportsPage() {
                     ))}
                     {visibleRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                        <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                           Onizlenecek satir bulunamadi.
                         </TableCell>
                       </TableRow>
@@ -169,4 +205,24 @@ function getStatusColor(status: ImportStatus) {
   }
 
   return 'error'
+}
+
+function getActionLabel(action: ImportAction) {
+  if (action === 'Create') {
+    return 'Yeni'
+  }
+
+  if (action === 'Update') {
+    return 'Guncelle'
+  }
+
+  if (action === 'NoChange') {
+    return 'Degisiklik yok'
+  }
+
+  if (action === 'Conflict') {
+    return 'Cakisma'
+  }
+
+  return 'Atla'
 }

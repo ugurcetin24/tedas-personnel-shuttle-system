@@ -1,8 +1,14 @@
 import { useMutation } from '@tanstack/react-query'
-import { previewPersonnelImport } from './importApi'
+import { commitPersonnelImport, previewPersonnelImport } from './importApi'
 
 export function usePreviewPersonnelImport() {
   return useMutation({
     mutationFn: previewPersonnelImport,
+  })
+}
+
+export function useCommitPersonnelImport() {
+  return useMutation({
+    mutationFn: commitPersonnelImport,
   })
 }

@@ -66,6 +66,24 @@ public sealed class PersonnelRepository(AppDbContext dbContext) : IPersonnelRepo
             cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<string, Personnel>> GetByRegistrationNumbersAsync(
+        IReadOnlyCollection<string> registrationNumbers,
+        CancellationToken cancellationToken)
+    {
+        if (registrationNumbers.Count == 0)
+        {
+            return new Dictionary<string, Personnel>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var personnel = await dbContext.Personnel
+            .Where(item => registrationNumbers.Contains(item.RegistrationNumber))
+            .ToArrayAsync(cancellationToken);
+
+        return personnel.ToDictionary(
+            item => item.RegistrationNumber,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
     public Task<bool> RegistrationNumberExistsAsync(
         string registrationNumber,
         Guid? excludedPersonnelId,
@@ -81,6 +99,20 @@ public sealed class PersonnelRepository(AppDbContext dbContext) : IPersonnelRepo
     public async Task AddAsync(Personnel personnel, CancellationToken cancellationToken)
     {
         await dbContext.Personnel.AddAsync(personnel, cancellationToken);
+    }
+
+    public async Task AddRangeAsync(IReadOnlyCollection<Personnel> personnel, CancellationToken cancellationToken)
+    {
+        await dbContext.Personnel.AddRangeAsync(personnel, cancellationToken);
+    }
+
+    public async Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await operation(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken)

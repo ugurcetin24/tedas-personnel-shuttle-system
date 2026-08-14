@@ -19,12 +19,22 @@ public interface IPersonnelRepository
         string registrationNumber,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyDictionary<string, Personnel>> GetByRegistrationNumbersAsync(
+        IReadOnlyCollection<string> registrationNumbers,
+        CancellationToken cancellationToken);
+
     Task<bool> RegistrationNumberExistsAsync(
         string registrationNumber,
         Guid? excludedPersonnelId,
         CancellationToken cancellationToken);
 
     Task AddAsync(Personnel personnel, CancellationToken cancellationToken);
+
+    Task AddRangeAsync(IReadOnlyCollection<Personnel> personnel, CancellationToken cancellationToken);
+
+    Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

@@ -9,4 +9,17 @@ public interface IExcelImportPreviewService
         string fileName,
         string? sheetName,
         CancellationToken cancellationToken);
+
+    Task<ExcelImportPreviewDto> PreviewPersonnelAsync(
+        Stream stream,
+        string fileName,
+        string? sheetName,
+        PersonnelImportPreviewOptions options,
+        CancellationToken cancellationToken);
+
+    Task<PersonnelImportCommitResultDto> CommitPersonnelAsync(
+        Stream stream,
+        string fileName,
+        string? sheetName,
+        CancellationToken cancellationToken);
 }
