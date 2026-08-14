@@ -506,6 +506,22 @@ Phase 15 ile dashboard gerçek backend verisine bağlanmıştır:
   - boş vardiya state
   - doluluk progress göstergeleri
 
+## Final Verification
+
+Phase 16 ile final doğrulama tamamlanmıştır:
+
+- `dotnet clean`
+- `dotnet restore`
+- `dotnet build --no-restore`
+- `dotnet test backend\Tedas.Shuttle.Tests\Tedas.Shuttle.Tests.csproj --no-build`
+- `npm ci`
+- `npm run build`
+- temiz SQLite veritabanı üzerinde EF Core migration doğrulaması
+- API smoke testleri: `/health`, `/api/dashboard/summary`, `/swagger/index.html`
+- yarım bırakılmış uygulama belirteçleri için kaynak kod taraması
+
+Not: Frontend production build sırasında Vite büyük chunk uyarısı üretir; build başarısızlığı değildir.
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -524,4 +540,4 @@ Phase 15 ile dashboard gerçek backend verisine bağlanmıştır:
 - Phase 13: Shuttle capacity import. Tamamlandı.
 - Phase 14: Route import. Tamamlandı.
 - Phase 15: Dashboard ve UX. Tamamlandı.
-- Phase 16: Final verification. Sıradaki faz.
+- Phase 16: Final verification. Tamamlandı.
