@@ -6,6 +6,7 @@ import {
   Alert,
   Button,
   Chip,
+  Divider,
   FormControl,
   IconButton,
   InputLabel,
@@ -20,7 +21,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
+  Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
@@ -35,6 +38,8 @@ import {
   useUpdateRoutePoint,
   useUpdateRoutePointStatus,
 } from '../features/routePoints/useRoutePoints'
+import type { CalculatedRoute } from '../features/routing/routingTypes'
+import { useCalculateRoute, useSavedRoutes, useSaveCalculatedRoute } from '../features/routing/useRouting'
 import { shiftTypes } from '../features/shifts/shiftTypes'
 import { useAllShifts } from '../features/shifts/useShifts'
 import { getApiErrorMessage } from '../utils/apiErrors'
@@ -44,6 +49,8 @@ export function RoutesPage() {
   const [selectedShiftId, setSelectedShiftId] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedRoutePoint, setSelectedRoutePoint] = useState<RoutePointListItem | null>(null)
+  const [calculatedRoute, setCalculatedRoute] = useState<CalculatedRoute | null>(null)
+  const [savedRouteName, setSavedRouteName] = useState('')
 
   useEffect(() => {
     if (!selectedShiftId && shiftsQuery.data?.length) {
@@ -56,12 +63,17 @@ export function RoutesPage() {
   const updateRoutePointMutation = useUpdateRoutePoint(selectedShiftId)
   const updateStatusMutation = useUpdateRoutePointStatus(selectedShiftId)
   const reorderMutation = useReorderRoutePoints(selectedShiftId)
+  const savedRoutesQuery = useSavedRoutes(selectedShiftId)
+  const calculateRouteMutation = useCalculateRoute(selectedShiftId)
+  const saveRouteMutation = useSaveCalculatedRoute(selectedShiftId)
 
   const mutationError =
     createRoutePointMutation.error ??
     updateRoutePointMutation.error ??
     updateStatusMutation.error ??
-    reorderMutation.error
+    reorderMutation.error ??
+    calculateRouteMutation.error ??
+    saveRouteMutation.error
   const routePoints = routePointsQuery.data ?? []
   const activeRoutePoints = routePoints.filter((routePoint) => routePoint.isActive)
   const mapCenter: LatLngTuple = activeRoutePoints.length
@@ -71,6 +83,18 @@ export function RoutesPage() {
     routePoint.latitude,
     routePoint.longitude,
   ])
+  const calculatedPolylinePositions: LatLngTuple[] =
+    calculatedRoute?.coordinates.map((coordinate) => [coordinate.latitude, coordinate.longitude]) ?? []
+  const viewportPositions = calculatedPolylinePositions.length
+    ? calculatedPolylinePositions
+    : polylinePositions
+
+  useEffect(() => {
+    setCalculatedRoute(null)
+    setSavedRouteName('')
+    calculateRouteMutation.reset()
+    saveRouteMutation.reset()
+  }, [selectedShiftId])
 
   function openCreateDialog() {
     setSelectedRoutePoint(null)
@@ -114,6 +138,18 @@ export function RoutesPage() {
     reorderMutation.mutate(ids)
   }
 
+  function handleCalculateRoute() {
+    calculateRouteMutation.mutate(undefined, {
+      onSuccess: (route) => setCalculatedRoute(route),
+    })
+  }
+
+  function handleSaveRoute() {
+    saveRouteMutation.mutate(savedRouteName, {
+      onSuccess: () => setSavedRouteName(''),
+    })
+  }
+
   return (
     <Stack spacing={3}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
@@ -145,6 +181,9 @@ export function RoutesPage() {
       {routePointsQuery.isError ? (
         <Alert severity="error">{getApiErrorMessage(routePointsQuery.error)}</Alert>
       ) : null}
+      {savedRoutesQuery.isError ? (
+        <Alert severity="error">{getApiErrorMessage(savedRoutesQuery.error)}</Alert>
+      ) : null}
       {mutationError ? <Alert severity="error">{getApiErrorMessage(mutationError)}</Alert> : null}
 
       <Paper variant="outlined" sx={{ borderRadius: 1, overflow: 'hidden' }}>
@@ -153,9 +192,15 @@ export function RoutesPage() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <RouteMapViewport positions={polylinePositions} />
+          <RouteMapViewport positions={viewportPositions} />
           {polylinePositions.length > 1 ? (
-            <Polyline positions={polylinePositions} pathOptions={{ color: '#1769aa', weight: 4 }} />
+            <Polyline
+              positions={polylinePositions}
+              pathOptions={{ color: '#1769aa', dashArray: '8 8', weight: 3 }}
+            />
+          ) : null}
+          {calculatedPolylinePositions.length > 1 ? (
+            <Polyline positions={calculatedPolylinePositions} pathOptions={{ color: '#d97706', weight: 5 }} />
           ) : null}
           {activeRoutePoints.map((routePoint) => (
             <CircleMarker
@@ -174,6 +219,73 @@ export function RoutesPage() {
             </CircleMarker>
           ))}
         </MapContainer>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ borderRadius: 1, p: 2 }}>
+        <Stack spacing={2}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            sx={{ alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between', gap: 2 }}
+          >
+            <Stack spacing={0.5}>
+              <Typography variant="subtitle1">OSRM rota hesabi</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {calculatedRoute
+                  ? `${formatDistance(calculatedRoute.distanceMeters)} / ${formatDuration(calculatedRoute.durationSeconds)}`
+                  : 'Aktif noktalar siraya gore hesaplanir.'}
+              </Typography>
+            </Stack>
+            <Button
+              variant="outlined"
+              disabled={!selectedShiftId || activeRoutePoints.length < 2 || calculateRouteMutation.isPending}
+              onClick={handleCalculateRoute}
+            >
+              Rotayi Hesapla
+            </Button>
+          </Stack>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+            <TextField
+              size="small"
+              label="Kayit adi"
+              value={savedRouteName}
+              onChange={(event) => setSavedRouteName(event.target.value)}
+              disabled={!calculatedRoute || saveRouteMutation.isPending}
+              sx={{ maxWidth: { md: 360 } }}
+              fullWidth
+            />
+            <Button
+              variant="contained"
+              disabled={!calculatedRoute || !savedRouteName.trim() || saveRouteMutation.isPending}
+              onClick={handleSaveRoute}
+            >
+              Kaydet
+            </Button>
+          </Stack>
+
+          <Divider />
+
+          <Stack spacing={1}>
+            <Typography variant="subtitle2">Kayitli rotalar</Typography>
+            {(savedRoutesQuery.data ?? []).map((route) => (
+              <Stack
+                key={route.id}
+                direction={{ xs: 'column', md: 'row' }}
+                sx={{ justifyContent: 'space-between', gap: 0.5 }}
+              >
+                <Typography variant="body2">{route.name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {formatDistance(route.distanceMeters)} / {formatDuration(route.durationSeconds)}
+                </Typography>
+              </Stack>
+            ))}
+            {savedRoutesQuery.data?.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Kayitli rota yok.
+              </Typography>
+            ) : null}
+          </Stack>
+        </Stack>
       </Paper>
 
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1 }}>
@@ -277,6 +389,14 @@ export function RoutesPage() {
 
 function getShiftTypeLabel(value: number) {
   return shiftTypes.find((type) => type.value === value)?.label ?? '-'
+}
+
+function formatDistance(distanceMeters: number) {
+  return `${(distanceMeters / 1000).toFixed(1)} km`
+}
+
+function formatDuration(durationSeconds: number) {
+  return `${Math.round(durationSeconds / 60)} dk`
 }
 
 function RouteMapViewport({ positions }: { positions: LatLngTuple[] }) {

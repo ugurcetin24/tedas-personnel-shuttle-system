@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Tedas.Shuttle.Infrastructure.Geocoding;
+using Tedas.Shuttle.Infrastructure.Routing;
 using Tedas.Shuttle.Application.Interfaces;
 using Tedas.Shuttle.Infrastructure.Persistence;
 using Tedas.Shuttle.Infrastructure.Repositories;
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IDriverRepository, DriverRepository>();
         services.AddScoped<IAssignmentRepository, AssignmentRepository>();
         services.AddScoped<IRoutePointRepository, RoutePointRepository>();
+        services.AddScoped<ISavedRouteRepository, SavedRouteRepository>();
 
         services.AddHttpClient<IGeocodingService, NominatimGeocodingService>(client =>
         {
@@ -43,6 +45,16 @@ public static class DependencyInjection
 
             client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
             client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("TedasPersonnelShuttleSystem/1.0");
+        });
+
+        services.AddHttpClient<IRoutingService, OsrmRoutingService>(client =>
+        {
+            var baseUrl = configuration["ExternalServices:Osrm:BaseUrl"]
+                ?? "https://router.project-osrm.org";
+
+            client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(20);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("TedasPersonnelShuttleSystem/1.0");
         });
 

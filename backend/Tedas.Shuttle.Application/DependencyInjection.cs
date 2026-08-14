@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<IDriverService, DriverService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<IRoutePointService, RoutePointService>();
+        services.AddScoped<IRouteCalculationService, RouteCalculationService>();
 
         return services;
     }

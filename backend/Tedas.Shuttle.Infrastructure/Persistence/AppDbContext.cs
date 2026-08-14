@@ -17,6 +17,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<RoutePoint> RoutePoints => Set<RoutePoint>();
 
+    public DbSet<SavedRoute> SavedRoutes => Set<SavedRoute>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

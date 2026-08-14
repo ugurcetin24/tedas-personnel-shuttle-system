@@ -106,6 +106,14 @@ Geocoding endpoint:
 GET /api/geocoding/search?query=Kizilay%20Ankara&limit=5
 ```
 
+Routing endpointleri:
+
+```text
+POST /api/shifts/{shiftId}/routes/calculate
+GET /api/shifts/{shiftId}/routes
+POST /api/shifts/{shiftId}/routes
+```
+
 ## Frontend Commands
 
 ```bash
@@ -134,7 +142,7 @@ Bu liste `Cors:AllowedOrigins` üzerinden değiştirilebilir.
 
 ## Database Migration Strategy
 
-`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts`, Phase 6 ile `AddDrivers`, Phase 7 ile `AddPersonnelAssignments`, Phase 8 ile `AddRoutePoints` migration dosyaları eklenmiştir.
+`AppDbContext` ve SQLite bağlantısı hazırdır. API başlangıcında `Database.Migrate()` çalıştırılır. Phase 3 ile `InitialPersonnel`, Phase 4 ile `AddPhysicalShuttles`, Phase 5 ile `AddShuttleShifts`, Phase 6 ile `AddDrivers`, Phase 7 ile `AddPersonnelAssignments`, Phase 8 ile `AddRoutePoints`, Phase 10 ile `AddSavedRoutes` migration dosyaları eklenmiştir.
 
 ## Personnel Module
 
@@ -311,6 +319,32 @@ Phase 9 ile harita ve adres arama entegrasyonunun ilk vertical slice'ı tamamlan
   - adres arama
   - seçilen geocoding sonucunu route point formuna koordinat/adres olarak aktarma
 
+## Routing Module
+
+Phase 10 ile OSRM rota hesaplama vertical slice'ı tamamlanmıştır:
+
+- `SavedRoute` domain entity'si.
+- EF Core tablo konfigürasyonu, `ShuttleShiftId` index'i ve `AddSavedRoutes` migration.
+- Backend routing akışı:
+  - `IRoutingService` application interface'i
+  - `OsrmRoutingService` infrastructure implementation'ı
+  - `HttpClientFactory` kullanımı
+  - timeout, HTTP failure ve malformed JSON durumlarında kontrollü `null` sonuç
+  - `ExternalServices:Osrm:BaseUrl` configuration kullanımı
+- Rota hesaplama business rule'u:
+  - en az iki aktif güzergah noktası olmadan rota hesaplanamaz
+  - OSRM sonucu alınamazsa kayıt işlemi kontrollü conflict hatası verir
+- REST endpointleri:
+  - `POST /api/shifts/{shiftId}/routes/calculate`
+  - `GET /api/shifts/{shiftId}/routes`
+  - `POST /api/shifts/{shiftId}/routes`
+- Frontend Güzergahlar sayfası:
+  - manuel nokta sırasını kesikli çizgiyle gösterme
+  - OSRM hesaplanan yol geometrisini ayrı çizgiyle gösterme
+  - mesafe ve süre özeti
+  - hesaplanan rotayı isimle kaydetme
+  - kayıtlı rotaları vardiya bazında listeleme
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -323,4 +357,5 @@ Phase 9 ile harita ve adres arama entegrasyonunun ilk vertical slice'ı tamamlan
 - Phase 7: Servis atamaları. Tamamlandı.
 - Phase 8: Güzergah noktaları. Tamamlandı.
 - Phase 9: Harita ve geocoding. Tamamlandı.
-- Phase 10: OSRM routing.
+- Phase 10: OSRM routing. Tamamlandı.
+- Phase 11: Excel import/export core. Sıradaki faz.
