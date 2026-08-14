@@ -100,6 +100,12 @@ Health endpoint:
 /health
 ```
 
+Dashboard endpoint:
+
+```text
+GET /api/dashboard/summary
+```
+
 Geocoding endpoint:
 
 ```text
@@ -469,6 +475,37 @@ Phase 14 ile güzergah Excel import akışı tamamlanmıştır:
   - hatasız preview için içeri aktarma
   - commit sonucunda oluşturulan, güncellenen ve atlanan satır özeti
 
+## Dashboard And UX Module
+
+Phase 15 ile dashboard gerçek backend verisine bağlanmıştır:
+
+- Dashboard summary endpoint:
+  - `GET /api/dashboard/summary`
+- Backend dashboard metrikleri:
+  - toplam personel
+  - aktif personel
+  - toplam servis
+  - aktif servis
+  - toplam vardiya
+  - aktif vardiya
+  - atanmış personel
+  - atanmamış personel
+  - güzergah noktası sayısı
+  - kayıtlı rota sayısı
+- Servis dolulukları:
+  - aktif servis/vardiya listesi
+  - kapasite
+  - doluluk
+  - boş koltuk
+  - doluluk yüzdesi
+- Frontend Dashboard sayfası:
+  - statik `0` değerleri kaldırıldı
+  - TanStack Query ile gerçek summary API entegrasyonu
+  - loading state
+  - error state
+  - boş vardiya state
+  - doluluk progress göstergeleri
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -486,4 +523,5 @@ Phase 14 ile güzergah Excel import akışı tamamlanmıştır:
 - Phase 12: Personnel import preview, conflict detection ve transaction commit. Tamamlandı.
 - Phase 13: Shuttle capacity import. Tamamlandı.
 - Phase 14: Route import. Tamamlandı.
-- Phase 15: Dashboard ve UX. Sıradaki faz.
+- Phase 15: Dashboard ve UX. Tamamlandı.
+- Phase 16: Final verification. Sıradaki faz.

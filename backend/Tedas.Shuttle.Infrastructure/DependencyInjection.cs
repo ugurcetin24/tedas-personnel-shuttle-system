@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<IRoutePointRepository, RoutePointRepository>();
         services.AddScoped<ISavedRouteRepository, SavedRouteRepository>();
         services.AddScoped<IExcelWorkbookReader, ClosedXmlWorkbookReader>();
+        services.AddScoped<IDashboardRepository, DashboardRepository>();
 
         services.AddHttpClient<IGeocodingService, NominatimGeocodingService>(client =>
         {
