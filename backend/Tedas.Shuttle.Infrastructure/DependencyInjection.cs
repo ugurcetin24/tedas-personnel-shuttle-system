@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tedas.Shuttle.Infrastructure.Excel;
 using Tedas.Shuttle.Infrastructure.Geocoding;
 using Tedas.Shuttle.Infrastructure.Routing;
 using Tedas.Shuttle.Application.Interfaces;
@@ -37,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IAssignmentRepository, AssignmentRepository>();
         services.AddScoped<IRoutePointRepository, RoutePointRepository>();
         services.AddScoped<ISavedRouteRepository, SavedRouteRepository>();
+        services.AddScoped<IExcelWorkbookReader, ClosedXmlWorkbookReader>();
 
         services.AddHttpClient<IGeocodingService, NominatimGeocodingService>(client =>
         {

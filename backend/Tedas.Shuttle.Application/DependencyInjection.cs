@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<IRoutePointService, RoutePointService>();
         services.AddScoped<IRouteCalculationService, RouteCalculationService>();
+        services.AddScoped<IExcelImportPreviewService, ExcelImportPreviewService>();
 
         return services;
     }

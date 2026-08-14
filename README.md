@@ -114,6 +114,12 @@ GET /api/shifts/{shiftId}/routes
 POST /api/shifts/{shiftId}/routes
 ```
 
+Excel preview endpoint:
+
+```text
+POST /api/imports/personnel/preview
+```
+
 ## Frontend Commands
 
 ```bash
@@ -345,6 +351,39 @@ Phase 10 ile OSRM rota hesaplama vertical slice'ı tamamlanmıştır:
   - hesaplanan rotayı isimle kaydetme
   - kayıtlı rotaları vardiya bazında listeleme
 
+## Excel Core Module
+
+Phase 11 ile Excel import altyapısının ilk çekirdeği tamamlanmıştır:
+
+- ClosedXML dependency'si eklendi.
+- Excel workbook okuma altyapısı:
+  - `.xlsx` ve `.xlsm` dosya uzantısı kontrolü
+  - sheet detection
+  - boş sheet tespiti
+  - header satırı okuma
+  - veri satırlarını header bazlı sözlüğe çevirme
+- Import core application modelleri:
+  - workbook, sheet, row DTO'ları
+  - kolon eşleştirme önerileri
+  - preview row DTO
+  - valid/warning/error preview durumu
+- Normalization altyapısı:
+  - trim ve whitespace normalization
+  - boş string değerini `null` yapma
+  - sicil numarası normalization
+  - telefon normalization
+  - integer parsing
+  - Turkish decimal comma ve invariant decimal parsing
+- Personel preview endpointi:
+  - `POST /api/imports/personnel/preview`
+- Frontend Excel Aktarım sayfası:
+  - `.xlsx` / `.xlsm` dosya seçme
+  - personel preview API entegrasyonu
+  - geçerli/uyarı/hata sayaçları
+  - normalize edilmiş ilk 50 satırı gösterme
+
+Not: Phase 11 bilinçli olarak database commit yapmaz. Preview + conflict detection + transaction commit Phase 12 kapsamındadır.
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -358,4 +397,5 @@ Phase 10 ile OSRM rota hesaplama vertical slice'ı tamamlanmıştır:
 - Phase 8: Güzergah noktaları. Tamamlandı.
 - Phase 9: Harita ve geocoding. Tamamlandı.
 - Phase 10: OSRM routing. Tamamlandı.
-- Phase 11: Excel import/export core. Sıradaki faz.
+- Phase 11: Excel import/export core. Tamamlandı.
+- Phase 12: Personnel import preview, conflict detection ve transaction commit. Sıradaki faz.
