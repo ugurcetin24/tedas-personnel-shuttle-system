@@ -1,5 +1,10 @@
 import { apiClient } from '../../api/httpClient'
-import type { CapacityImportCommitResult, ExcelImportPreview, PersonnelImportCommitResult } from './importTypes'
+import type {
+  CapacityImportCommitResult,
+  ExcelImportPreview,
+  PersonnelImportCommitResult,
+  RouteImportCommitResult,
+} from './importTypes'
 
 export async function previewPersonnelImport(file: File) {
   const formData = new FormData()
@@ -49,6 +54,28 @@ export async function commitCapacityImport(file: File) {
       headers: { 'Content-Type': 'multipart/form-data' },
     },
   )
+
+  return response.data
+}
+
+export async function previewRouteImport(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await apiClient.post<ExcelImportPreview>('/api/imports/routes/preview', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+
+  return response.data
+}
+
+export async function commitRouteImport(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await apiClient.post<RouteImportCommitResult>('/api/imports/routes/commit', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 
   return response.data
 }

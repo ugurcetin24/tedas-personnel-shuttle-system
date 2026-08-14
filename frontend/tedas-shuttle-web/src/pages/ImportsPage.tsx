@@ -23,12 +23,14 @@ import type { ImportAction, ImportStatus } from '../features/imports/importTypes
 import {
   useCommitCapacityImport,
   useCommitPersonnelImport,
+  useCommitRouteImport,
   usePreviewCapacityImport,
   usePreviewPersonnelImport,
+  usePreviewRouteImport,
 } from '../features/imports/useImports'
 import { getApiErrorMessage } from '../utils/apiErrors'
 
-type ImportMode = 'personnel' | 'capacity'
+type ImportMode = 'personnel' | 'capacity' | 'route'
 
 export function ImportsPage() {
   const [mode, setMode] = useState<ImportMode>('personnel')
@@ -38,8 +40,12 @@ export function ImportsPage() {
   const personnelCommitMutation = useCommitPersonnelImport()
   const capacityPreviewMutation = usePreviewCapacityImport()
   const capacityCommitMutation = useCommitCapacityImport()
-  const previewMutation = mode === 'personnel' ? personnelPreviewMutation : capacityPreviewMutation
-  const commitMutation = mode === 'personnel' ? personnelCommitMutation : capacityCommitMutation
+  const routePreviewMutation = usePreviewRouteImport()
+  const routeCommitMutation = useCommitRouteImport()
+  const previewMutation =
+    mode === 'personnel' ? personnelPreviewMutation : mode === 'capacity' ? capacityPreviewMutation : routePreviewMutation
+  const commitMutation =
+    mode === 'personnel' ? personnelCommitMutation : mode === 'capacity' ? capacityCommitMutation : routeCommitMutation
   const preview = previewMutation.data
   const visibleRows = preview?.rows.slice(0, 50) ?? []
   const previewStats = useMemo(() => {
@@ -64,6 +70,8 @@ export function ImportsPage() {
     personnelCommitMutation.reset()
     capacityPreviewMutation.reset()
     capacityCommitMutation.reset()
+    routePreviewMutation.reset()
+    routeCommitMutation.reset()
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -110,6 +118,7 @@ export function ImportsPage() {
           <Tabs value={mode} onChange={handleModeChange}>
             <Tab value="personnel" label="Personel" />
             <Tab value="capacity" label="Kapasite" />
+            <Tab value="route" label="Guzergah" />
           </Tabs>
 
           <Stack direction={{ xs: 'column', md: 'row' }} sx={{ justifyContent: 'space-between', gap: 2 }}>
@@ -173,13 +182,21 @@ export function ImportsPage() {
                           <TableCell>Ad Soyad</TableCell>
                           <TableCell>Birim</TableCell>
                         </>
-                      ) : (
+                      ) : mode === 'capacity' ? (
                         <>
                           <TableCell>Servis</TableCell>
                           <TableCell>Vardiya</TableCell>
                           <TableCell>Kapasite</TableCell>
                           <TableCell>Mevcut</TableCell>
                           <TableCell>Dolu</TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell>Servis</TableCell>
+                          <TableCell>Vardiya</TableCell>
+                          <TableCell>Sira</TableCell>
+                          <TableCell>Durak</TableCell>
+                          <TableCell>Koordinat</TableCell>
                         </>
                       )}
                       <TableCell>Aciklama</TableCell>
@@ -208,13 +225,25 @@ export function ImportsPage() {
                             </TableCell>
                             <TableCell>{row.normalizedData.Department ?? '-'}</TableCell>
                           </>
-                        ) : (
+                        ) : mode === 'capacity' ? (
                           <>
                             <TableCell>{row.normalizedData.PhysicalShuttleCode ?? '-'}</TableCell>
                             <TableCell>{row.normalizedData.ShiftName ?? '-'}</TableCell>
                             <TableCell>{row.normalizedData.Capacity ?? '-'}</TableCell>
                             <TableCell>{row.normalizedData.CurrentCapacity ?? '-'}</TableCell>
                             <TableCell>{row.normalizedData.Occupancy ?? '-'}</TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell>{row.normalizedData.PhysicalShuttleCode ?? '-'}</TableCell>
+                            <TableCell>{row.normalizedData.ShiftName ?? '-'}</TableCell>
+                            <TableCell>{row.normalizedData.Order ?? '-'}</TableCell>
+                            <TableCell>{row.normalizedData.Name ?? '-'}</TableCell>
+                            <TableCell>
+                              {row.normalizedData.Latitude && row.normalizedData.Longitude
+                                ? `${row.normalizedData.Latitude}, ${row.normalizedData.Longitude}`
+                                : '-'}
+                            </TableCell>
                           </>
                         )}
                         <TableCell>{[...row.errors, ...row.warnings].join(' ') || '-'}</TableCell>
@@ -239,7 +268,15 @@ export function ImportsPage() {
 }
 
 function getModeTitle(mode: ImportMode) {
-  return mode === 'personnel' ? 'Personel Excel onizleme' : 'Servis kapasitesi Excel onizleme'
+  if (mode === 'personnel') {
+    return 'Personel Excel onizleme'
+  }
+
+  if (mode === 'capacity') {
+    return 'Servis kapasitesi Excel onizleme'
+  }
+
+  return 'Guzergah Excel onizleme'
 }
 
 function getStatusLabel(status: ImportStatus) {

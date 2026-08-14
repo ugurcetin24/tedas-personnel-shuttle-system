@@ -33,3 +33,5 @@ export type PersonnelImportCommitResult = {
 }
 
 export type CapacityImportCommitResult = PersonnelImportCommitResult
+
+export type RouteImportCommitResult = PersonnelImportCommitResult

@@ -19,6 +19,25 @@ public sealed class RoutePointRepository(AppDbContext dbContext) : IRoutePointRe
             .ToArrayAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<RoutePoint>> ListByShiftIdsAsync(
+        IReadOnlyCollection<Guid> shuttleShiftIds,
+        CancellationToken cancellationToken)
+    {
+        if (shuttleShiftIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.RoutePoints
+            .Include(routePoint => routePoint.ShuttleShift)
+            .ThenInclude(shift => shift!.PhysicalShuttle)
+            .Where(routePoint => shuttleShiftIds.Contains(routePoint.ShuttleShiftId))
+            .OrderBy(routePoint => routePoint.ShuttleShift!.PhysicalShuttle!.Code)
+            .ThenBy(routePoint => routePoint.ShuttleShift!.Name)
+            .ThenBy(routePoint => routePoint.Order)
+            .ToArrayAsync(cancellationToken);
+    }
+
     public Task<RoutePoint?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         return dbContext.RoutePoints
@@ -49,9 +68,22 @@ public sealed class RoutePointRepository(AppDbContext dbContext) : IRoutePointRe
         await dbContext.RoutePoints.AddAsync(routePoint, cancellationToken);
     }
 
+    public async Task AddRangeAsync(IReadOnlyCollection<RoutePoint> routePoints, CancellationToken cancellationToken)
+    {
+        await dbContext.RoutePoints.AddRangeAsync(routePoints, cancellationToken);
+    }
+
+    public async Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await operation(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return dbContext.SaveChangesAsync(cancellationToken);
     }
 }
-

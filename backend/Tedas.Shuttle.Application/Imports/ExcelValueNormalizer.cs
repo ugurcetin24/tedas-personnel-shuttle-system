@@ -64,6 +64,20 @@ public static partial class ExcelValueNormalizer
             || TimeOnly.TryParse(normalized, CultureInfo.InvariantCulture, out result);
     }
 
+    public static bool TryParseBoolean(string? value, out bool result)
+    {
+        var normalized = NormalizeWhitespace(value).ToLower(TurkishCulture);
+        result = normalized switch
+        {
+            "true" or "1" or "evet" or "aktif" or "active" => true,
+            "false" or "0" or "hayir" or "hayır" or "pasif" or "inactive" => false,
+            _ => false
+        };
+
+        return normalized is "true" or "1" or "evet" or "aktif" or "active"
+            or "false" or "0" or "hayir" or "hayır" or "pasif" or "inactive";
+    }
+
     [GeneratedRegex("[^0-9+]")]
     private static partial Regex NonPhoneCharacterRegex();
 }

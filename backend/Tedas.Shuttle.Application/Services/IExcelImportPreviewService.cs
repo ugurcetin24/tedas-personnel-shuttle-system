@@ -34,4 +34,16 @@ public interface IExcelImportPreviewService
         string fileName,
         string? sheetName,
         CancellationToken cancellationToken);
+
+    Task<ExcelImportPreviewDto> PreviewRouteAsync(
+        Stream stream,
+        string fileName,
+        string? sheetName,
+        CancellationToken cancellationToken);
+
+    Task<RouteImportCommitResultDto> CommitRouteAsync(
+        Stream stream,
+        string fileName,
+        string? sheetName,
+        CancellationToken cancellationToken);
 }

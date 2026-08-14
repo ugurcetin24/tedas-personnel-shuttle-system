@@ -121,6 +121,8 @@ POST /api/imports/personnel/preview
 POST /api/imports/personnel/commit
 POST /api/imports/capacity/preview
 POST /api/imports/capacity/commit
+POST /api/imports/routes/preview
+POST /api/imports/routes/commit
 ```
 
 ## Frontend Commands
@@ -437,6 +439,36 @@ Phase 13 ile servis/vardiya kapasite import akışı tamamlanmıştır:
   - hatasız preview için içeri aktarma
   - commit sonucunda oluşturulan, güncellenen ve atlanan satır özeti
 
+## Route Excel Import Module
+
+Phase 14 ile güzergah Excel import akışı tamamlanmıştır:
+
+- Güzergah import business key:
+  - `PhysicalShuttle.Code + ShuttleShift.Name + RoutePoint.Order`
+- Idempotency stratejisi:
+  - aynı servis/vardiya/sıra tekrar import edilirse yeni `RoutePoint` oluşturulmaz
+  - mevcut nokta farklı veri taşıyorsa `Update`
+  - mevcut nokta aynı veri taşıyorsa `NoChange`
+  - yeni sıra ise `Create`
+- Preview davranışı:
+  - servis/vardiya sistemde yoksa `Conflict`
+  - Excel içinde aynı servis/vardiya/sıra tekrar ediyorsa `Conflict`
+  - sıra, durak adı, enlem ve boylam zorunludur
+  - koordinat parse edilemiyorsa satır hata alır
+  - aktif/pasif kolonu opsiyoneldir
+- Commit endpointleri:
+  - `POST /api/imports/routes/preview`
+  - `POST /api/imports/routes/commit`
+- Commit davranışı:
+  - preview içinde hata varsa commit reddedilir
+  - create/update işlemleri EF Core transaction içinde yapılır
+  - tekrar import duplicate route point üretmez
+- Frontend Excel Aktarım sayfası:
+  - Personel / Kapasite / Güzergah import modu
+  - güzergah preview tablosunda servis, vardiya, sıra, durak ve koordinat bilgisi
+  - hatasız preview için içeri aktarma
+  - commit sonucunda oluşturulan, güncellenen ve atlanan satır özeti
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -453,4 +485,5 @@ Phase 13 ile servis/vardiya kapasite import akışı tamamlanmıştır:
 - Phase 11: Excel import/export core. Tamamlandı.
 - Phase 12: Personnel import preview, conflict detection ve transaction commit. Tamamlandı.
 - Phase 13: Shuttle capacity import. Tamamlandı.
-- Phase 14: Route import. Sıradaki faz.
+- Phase 14: Route import. Tamamlandı.
+- Phase 15: Dashboard ve UX. Sıradaki faz.

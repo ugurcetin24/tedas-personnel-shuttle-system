@@ -366,6 +366,118 @@ public sealed class ExcelCoreTests
         Assert.Equal(18, (await fixture.GetShiftAsync("SERVIS-01", "Sabah"))!.Capacity);
     }
 
+    [Fact]
+    public async Task PreviewRouteAsync_WithMissingShift_MarksConflict()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        await fixture.AddShuttleAsync("SERVIS-01");
+        await using var stream = CreateRouteWorkbook("SERVIS-01", "Sabah", 1, "TEDAS", "39,925", "32,854");
+        var service = fixture.CreateService();
+
+        var preview = await service.PreviewRouteAsync(stream, "guzergah.xlsx", null, CancellationToken.None);
+
+        Assert.Equal("Error", preview.Rows[0].Status);
+        Assert.Equal("Conflict", preview.Rows[0].Action);
+        Assert.Contains(preview.Rows[0].Errors, error => error.Contains("vardiyasi", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task PreviewRouteAsync_WithDuplicateRouteKey_MarksConflict()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        var shuttle = await fixture.AddShuttleAsync("SERVIS-01");
+        await fixture.AddShiftAsync(shuttle, "Sabah", 20);
+        await using var stream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Guzergah");
+            AddRouteHeaders(sheet);
+            AddRouteRow(sheet, 2, "SERVIS-01", "Sabah", 1, "TEDAS", "39,925", "32,854");
+            AddRouteRow(sheet, 3, "SERVIS-01", "Sabah", 1, "Kizilay", "39,920", "32,850");
+        });
+        var service = fixture.CreateService();
+
+        var preview = await service.PreviewRouteAsync(stream, "guzergah.xlsx", null, CancellationToken.None);
+
+        Assert.All(preview.Rows, row =>
+        {
+            Assert.Equal("Error", row.Status);
+            Assert.Equal("Conflict", row.Action);
+        });
+    }
+
+    [Fact]
+    public async Task PreviewRouteAsync_WithInvalidCoordinate_ReturnsError()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        var shuttle = await fixture.AddShuttleAsync("SERVIS-01");
+        await fixture.AddShiftAsync(shuttle, "Sabah", 20);
+        await using var stream = CreateRouteWorkbook("SERVIS-01", "Sabah", 1, "TEDAS", "Ankara", "32,854");
+        var service = fixture.CreateService();
+
+        var preview = await service.PreviewRouteAsync(stream, "guzergah.xlsx", null, CancellationToken.None);
+
+        Assert.Equal("Error", preview.Rows[0].Status);
+        Assert.Contains(preview.Rows[0].Errors, error => error.Contains("Enlem", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task CommitRouteAsync_WithExistingAndNewRoutePoint_PersistsInTransaction()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        var shuttle = await fixture.AddShuttleAsync("SERVIS-01");
+        var shift = await fixture.AddShiftAsync(shuttle, "Sabah", 20);
+        await fixture.AddRoutePointAsync(shift, 1, "TEDAS Eski", 39.900m, 32.800m);
+        await using var stream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Guzergah");
+            AddRouteHeaders(sheet);
+            AddRouteRow(sheet, 2, "SERVIS-01", "Sabah", 1, "TEDAS", "39,925", "32,854");
+            AddRouteRow(sheet, 3, "SERVIS-01", "Sabah", 2, "Kizilay", "39,920", "32,850");
+        });
+        var service = fixture.CreateService();
+
+        var result = await service.CommitRouteAsync(stream, "guzergah.xlsx", null, CancellationToken.None);
+        var routePoints = await fixture.ListRoutePointsAsync(shift);
+
+        Assert.Equal(1, result.CreatedCount);
+        Assert.Equal(1, result.UpdatedCount);
+        Assert.Equal(2, routePoints.Count);
+        Assert.Equal("TEDAS", routePoints[0].Name);
+        Assert.Equal("Kizilay", routePoints[1].Name);
+    }
+
+    [Fact]
+    public async Task CommitRouteAsync_WithSameWorkbookAgain_DoesNotDuplicateRoutePoints()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        var shuttle = await fixture.AddShuttleAsync("SERVIS-01");
+        var shift = await fixture.AddShiftAsync(shuttle, "Sabah", 20);
+        var service = fixture.CreateService();
+        await using var firstStream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Guzergah");
+            AddRouteHeaders(sheet);
+            AddRouteRow(sheet, 2, "SERVIS-01", "Sabah", 1, "TEDAS", "39,925", "32,854");
+            AddRouteRow(sheet, 3, "SERVIS-01", "Sabah", 2, "Kizilay", "39,920", "32,850");
+        });
+        await service.CommitRouteAsync(firstStream, "guzergah.xlsx", null, CancellationToken.None);
+        await using var secondStream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Guzergah");
+            AddRouteHeaders(sheet);
+            AddRouteRow(sheet, 2, "SERVIS-01", "Sabah", 1, "TEDAS", "39,925", "32,854");
+            AddRouteRow(sheet, 3, "SERVIS-01", "Sabah", 2, "Kizilay", "39,920", "32,850");
+        });
+
+        var result = await service.CommitRouteAsync(secondStream, "guzergah.xlsx", null, CancellationToken.None);
+        var routePoints = await fixture.ListRoutePointsAsync(shift);
+
+        Assert.Equal(0, result.CreatedCount);
+        Assert.Equal(0, result.UpdatedCount);
+        Assert.Equal(2, result.SkippedCount);
+        Assert.Equal(2, routePoints.Count);
+    }
+
     private static MemoryStream CreateWorkbook(Action<XLWorkbook> configure)
     {
         using var workbook = new XLWorkbook();
@@ -390,6 +502,22 @@ public sealed class ExcelCoreTests
         });
     }
 
+    private static MemoryStream CreateRouteWorkbook(
+        string shuttleCode,
+        string shiftName,
+        int order,
+        string name,
+        string latitude,
+        string longitude)
+    {
+        return CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Guzergah");
+            AddRouteHeaders(sheet);
+            AddRouteRow(sheet, 2, shuttleCode, shiftName, order, name, latitude, longitude);
+        });
+    }
+
     private static void AddCapacityHeaders(IXLWorksheet sheet)
     {
         sheet.Cell(1, 1).Value = "Servis Kodu";
@@ -398,6 +526,34 @@ public sealed class ExcelCoreTests
         sheet.Cell(1, 4).Value = "Vardiya Tipi";
         sheet.Cell(1, 5).Value = "Baslangic";
         sheet.Cell(1, 6).Value = "Bitis";
+    }
+
+    private static void AddRouteHeaders(IXLWorksheet sheet)
+    {
+        sheet.Cell(1, 1).Value = "Servis Kodu";
+        sheet.Cell(1, 2).Value = "Vardiya";
+        sheet.Cell(1, 3).Value = "Sira";
+        sheet.Cell(1, 4).Value = "Durak";
+        sheet.Cell(1, 5).Value = "Enlem";
+        sheet.Cell(1, 6).Value = "Boylam";
+    }
+
+    private static void AddRouteRow(
+        IXLWorksheet sheet,
+        int row,
+        string shuttleCode,
+        string shiftName,
+        int order,
+        string name,
+        string latitude,
+        string longitude)
+    {
+        sheet.Cell(row, 1).Value = shuttleCode;
+        sheet.Cell(row, 2).Value = shiftName;
+        sheet.Cell(row, 3).Value = order;
+        sheet.Cell(row, 4).Value = name;
+        sheet.Cell(row, 5).Value = latitude;
+        sheet.Cell(row, 6).Value = longitude;
     }
 
     private sealed class ExcelImportFixture : IAsyncDisposable
@@ -432,7 +588,8 @@ public sealed class ExcelCoreTests
             return new ExcelImportPreviewService(
                 new ClosedXmlWorkbookReader(),
                 new PersonnelRepository(DbContext),
-                new ShiftRepository(DbContext));
+                new ShiftRepository(DbContext),
+                new RoutePointRepository(DbContext));
         }
 
         public async Task AddPersonnelAsync(
@@ -524,6 +681,35 @@ public sealed class ExcelCoreTests
                 .FirstOrDefaultAsync(shift =>
                     shift.PhysicalShuttle!.Code == shuttleCode
                     && shift.Name == shiftName);
+        }
+
+        public async Task<RoutePoint> AddRoutePointAsync(
+            ShuttleShift shift,
+            int order,
+            string name,
+            decimal latitude,
+            decimal longitude)
+        {
+            var routePoint = new RoutePoint(
+                shift.Id,
+                order,
+                name,
+                null,
+                latitude,
+                longitude,
+                DateTimeOffset.UtcNow);
+            DbContext.RoutePoints.Add(routePoint);
+            await DbContext.SaveChangesAsync();
+
+            return routePoint;
+        }
+
+        public async Task<IReadOnlyList<RoutePoint>> ListRoutePointsAsync(ShuttleShift shift)
+        {
+            return await DbContext.RoutePoints
+                .Where(routePoint => routePoint.ShuttleShiftId == shift.Id)
+                .OrderBy(routePoint => routePoint.Order)
+                .ToArrayAsync();
         }
 
         public async ValueTask DisposeAsync()

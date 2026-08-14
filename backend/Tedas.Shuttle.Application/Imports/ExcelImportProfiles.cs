@@ -109,4 +109,60 @@ public static class ExcelImportProfiles
             "End Time"
         })
     ];
+
+    public static readonly IReadOnlyList<ExcelColumnMappingProfile> Route =
+    [
+        new("PhysicalShuttleCode", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Servis",
+            "Servis Kodu",
+            "Servis No",
+            "Shuttle Code"
+        }),
+        new("ShiftName", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Vardiya",
+            "Vardiya Adi",
+            "Shift",
+            "Shift Name"
+        }),
+        new("Order", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Sira",
+            "Sira No",
+            "Order"
+        }),
+        new("Name", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Nokta",
+            "Durak",
+            "Durak Adi",
+            "Route Point",
+            "Name"
+        }),
+        new("Address", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Adres",
+            "Address"
+        }),
+        new("Latitude", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Latitude",
+            "Enlem",
+            "Lat"
+        }),
+        new("Longitude", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Longitude",
+            "Boylam",
+            "Lon",
+            "Lng"
+        }),
+        new("IsActive", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Aktif",
+            "Durum",
+            "Is Active"
+        })
+    ];
 }

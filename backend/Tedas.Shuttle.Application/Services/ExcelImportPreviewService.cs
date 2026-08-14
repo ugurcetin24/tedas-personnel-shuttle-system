@@ -10,13 +10,18 @@ namespace Tedas.Shuttle.Application.Services;
 public sealed class ExcelImportPreviewService(
     IExcelWorkbookReader workbookReader,
     IPersonnelRepository personnelRepository,
-    IShiftRepository shiftRepository)
+    IShiftRepository shiftRepository,
+    IRoutePointRepository routePointRepository)
     : IExcelImportPreviewService
 {
     private static readonly IReadOnlySet<string> RequiredPersonnelFields =
         new HashSet<string>(["RegistrationNumber", "FirstName", "LastName"], StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> RequiredCapacityFields =
         new HashSet<string>(["PhysicalShuttleCode", "ShiftName", "Capacity"], StringComparer.Ordinal);
+    private static readonly IReadOnlySet<string> RequiredRouteFields =
+        new HashSet<string>(
+            ["PhysicalShuttleCode", "ShiftName", "Order", "Name", "Latitude", "Longitude"],
+            StringComparer.Ordinal);
 
     public async Task<ExcelImportPreviewDto> PreviewPersonnelAsync(
         Stream stream,
@@ -247,6 +252,111 @@ public sealed class ExcelImportPreviewService(
         return new CapacityImportCommitResultDto(createdCount, updatedCount, skippedCount, preview.Rows);
     }
 
+    public async Task<ExcelImportPreviewDto> PreviewRouteAsync(
+        Stream stream,
+        string fileName,
+        string? sheetName,
+        CancellationToken cancellationToken)
+    {
+        var workbook = await workbookReader.ReadAsync(stream, fileName, cancellationToken);
+        var sheet = SelectSheet(workbook, sheetName);
+        var suggestions = ExcelColumnMappingSuggester.Suggest(sheet.Headers, ExcelImportProfiles.Route);
+        var mapping = suggestions
+            .GroupBy(suggestion => suggestion.TargetField)
+            .ToDictionary(group => group.Key, group => group.First().SourceHeader, StringComparer.Ordinal);
+        var missingFields = RequiredRouteFields
+            .Where(field => !mapping.ContainsKey(field))
+            .ToArray();
+        var rows = sheet.Rows
+            .Select(row => MapRouteRow(row, mapping, missingFields))
+            .ToArray();
+        rows = await AddRouteConflictDetectionAsync(rows, cancellationToken);
+
+        return new ExcelImportPreviewDto(
+            workbook.FileName,
+            sheet.Name,
+            sheet.Headers,
+            suggestions,
+            rows);
+    }
+
+    public async Task<RouteImportCommitResultDto> CommitRouteAsync(
+        Stream stream,
+        string fileName,
+        string? sheetName,
+        CancellationToken cancellationToken)
+    {
+        var preview = await PreviewRouteAsync(stream, fileName, sheetName, cancellationToken);
+        if (preview.Rows.Any(row => row.Status == "Error"))
+        {
+            throw new BusinessConflictException(
+                "ROUTE_IMPORT_PREVIEW_HAS_ERRORS",
+                "Guzergah import commit icin onizlemede hata bulunmamali.");
+        }
+
+        var importRows = preview.Rows
+            .Where(row => row.Action is "Create" or "Update")
+            .ToArray();
+        var shuttleCodes = importRows
+            .Select(row => row.NormalizedData["PhysicalShuttleCode"])
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var shifts = await shiftRepository.ListByShuttleCodesAsync(shuttleCodes, cancellationToken);
+        var shiftsByKey = shifts.ToDictionary(
+            shift => ShiftKey(shift.PhysicalShuttle?.Code ?? string.Empty, shift.Name),
+            StringComparer.OrdinalIgnoreCase);
+        var routePoints = await routePointRepository.ListByShiftIdsAsync(
+            shifts.Select(shift => shift.Id).ToArray(),
+            cancellationToken);
+        var routePointsByKey = routePoints.ToDictionary(
+            routePoint => RouteKey(
+                routePoint.ShuttleShift?.PhysicalShuttle?.Code ?? string.Empty,
+                routePoint.ShuttleShift?.Name ?? string.Empty,
+                routePoint.Order),
+            StringComparer.OrdinalIgnoreCase);
+        var createdCount = 0;
+        var updatedCount = 0;
+
+        await routePointRepository.ExecuteInTransactionAsync(
+            async token =>
+            {
+                var newRoutePoints = new List<RoutePoint>();
+
+                foreach (var row in importRows)
+                {
+                    var shuttleCode = row.NormalizedData["PhysicalShuttleCode"]!;
+                    var shiftName = row.NormalizedData["ShiftName"]!;
+                    var order = int.Parse(row.NormalizedData["Order"]!, System.Globalization.CultureInfo.InvariantCulture);
+                    var routeKey = RouteKey(shuttleCode, shiftName, order);
+
+                    if (routePointsByKey.TryGetValue(routeKey, out var routePoint))
+                    {
+                        UpdateRoutePoint(routePoint, row);
+                        updatedCount++;
+                        continue;
+                    }
+
+                    var shift = shiftsByKey[ShiftKey(shuttleCode, shiftName)];
+                    newRoutePoints.Add(CreateRoutePoint(shift.Id, row));
+                    createdCount++;
+                }
+
+                if (newRoutePoints.Count > 0)
+                {
+                    await routePointRepository.AddRangeAsync(newRoutePoints, token);
+                }
+
+                await routePointRepository.SaveChangesAsync(token);
+            },
+            cancellationToken);
+
+        var skippedCount = preview.Rows.Count - createdCount - updatedCount;
+
+        return new RouteImportCommitResultDto(createdCount, updatedCount, skippedCount, preview.Rows);
+    }
+
     private static ExcelSheetDto SelectSheet(ExcelWorkbookDto workbook, string? sheetName)
     {
         if (!string.IsNullOrWhiteSpace(sheetName))
@@ -367,6 +477,66 @@ public sealed class ExcelImportPreviewService(
         return new ExcelPreviewRowDto(row.RowNumber, status, action, normalizedData, errors, warnings);
     }
 
+    private static ExcelPreviewRowDto MapRouteRow(
+        ExcelSheetRowDto row,
+        IReadOnlyDictionary<string, string> mapping,
+        IReadOnlyList<string> missingFields)
+    {
+        var normalizedData = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["PhysicalShuttleCode"] = NormalizeMappedValue(row, mapping, "PhysicalShuttleCode", ExcelValueNormalizer.NormalizeCode),
+            ["ShiftName"] = NormalizeMappedValue(row, mapping, "ShiftName", ExcelValueNormalizer.NullIfWhiteSpace),
+            ["Order"] = NormalizeInteger(row, mapping, "Order"),
+            ["Name"] = NormalizeMappedValue(row, mapping, "Name", ExcelValueNormalizer.NullIfWhiteSpace),
+            ["Address"] = NormalizeMappedValue(row, mapping, "Address", ExcelValueNormalizer.NullIfWhiteSpace),
+            ["Latitude"] = NormalizeCoordinate(row, mapping, "Latitude"),
+            ["Longitude"] = NormalizeCoordinate(row, mapping, "Longitude"),
+            ["IsActive"] = NormalizeBoolean(row, mapping, "IsActive"),
+            ["CurrentName"] = null
+        };
+
+        var errors = new List<string>();
+        var warnings = new List<string>();
+
+        foreach (var missingField in missingFields)
+        {
+            errors.Add($"{missingField} sutunu eslestirilemedi.");
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedData["PhysicalShuttleCode"]))
+        {
+            errors.Add("Servis kodu bos birakilamaz.");
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedData["ShiftName"]))
+        {
+            errors.Add("Vardiya adi bos birakilamaz.");
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedData["Order"]))
+        {
+            errors.Add("Sira bos veya gecersiz olamaz.");
+        }
+        else if (int.Parse(normalizedData["Order"]!, System.Globalization.CultureInfo.InvariantCulture) <= 0)
+        {
+            errors.Add("Sira pozitif olmalidir.");
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedData["Name"]))
+        {
+            errors.Add("Durak adi bos birakilamaz.");
+        }
+
+        AddRequiredCoordinateErrorIfInvalid(row, mapping, "Latitude", "Enlem", errors);
+        AddRequiredCoordinateErrorIfInvalid(row, mapping, "Longitude", "Boylam", errors);
+        AddBooleanWarningIfInvalid(row, mapping, "IsActive", "Aktif", warnings);
+
+        var status = errors.Count > 0 ? "Error" : warnings.Count > 0 ? "Warning" : "Valid";
+        var action = errors.Count > 0 ? "Skip" : "Create";
+
+        return new ExcelPreviewRowDto(row.RowNumber, status, action, normalizedData, errors, warnings);
+    }
+
     private async Task<ExcelPreviewRowDto[]> AddPersonnelConflictDetectionAsync(
         IReadOnlyList<ExcelPreviewRowDto> rows,
         CancellationToken cancellationToken)
@@ -423,6 +593,48 @@ public sealed class ExcelImportPreviewService(
 
         return rows
             .Select(row => AddCapacityConflictDetection(row, duplicateKeys, shiftsByKey, shuttlesByCode, occupancyByShiftId))
+            .ToArray();
+    }
+
+    private async Task<ExcelPreviewRowDto[]> AddRouteConflictDetectionAsync(
+        IReadOnlyList<ExcelPreviewRowDto> rows,
+        CancellationToken cancellationToken)
+    {
+        var duplicateKeys = rows
+            .Where(row =>
+                !string.IsNullOrWhiteSpace(row.NormalizedData["PhysicalShuttleCode"])
+                && !string.IsNullOrWhiteSpace(row.NormalizedData["ShiftName"])
+                && !string.IsNullOrWhiteSpace(row.NormalizedData["Order"]))
+            .GroupBy(row => RouteKey(
+                row.NormalizedData["PhysicalShuttleCode"]!,
+                row.NormalizedData["ShiftName"]!,
+                int.Parse(row.NormalizedData["Order"]!, System.Globalization.CultureInfo.InvariantCulture)),
+                StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var shuttleCodes = rows
+            .Select(row => row.NormalizedData["PhysicalShuttleCode"])
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var shifts = await shiftRepository.ListByShuttleCodesAsync(shuttleCodes, cancellationToken);
+        var shiftsByKey = shifts.ToDictionary(
+            shift => ShiftKey(shift.PhysicalShuttle?.Code ?? string.Empty, shift.Name),
+            StringComparer.OrdinalIgnoreCase);
+        var routePoints = await routePointRepository.ListByShiftIdsAsync(
+            shifts.Select(shift => shift.Id).ToArray(),
+            cancellationToken);
+        var routePointsByKey = routePoints.ToDictionary(
+            routePoint => RouteKey(
+                routePoint.ShuttleShift?.PhysicalShuttle?.Code ?? string.Empty,
+                routePoint.ShuttleShift?.Name ?? string.Empty,
+                routePoint.Order),
+            StringComparer.OrdinalIgnoreCase);
+
+        return rows
+            .Select(row => AddRouteConflictDetection(row, duplicateKeys, shiftsByKey, routePointsByKey))
             .ToArray();
     }
 
@@ -560,6 +772,70 @@ public sealed class ExcelImportPreviewService(
         };
     }
 
+    private static ExcelPreviewRowDto AddRouteConflictDetection(
+        ExcelPreviewRowDto row,
+        IReadOnlySet<string> duplicateKeys,
+        IReadOnlyDictionary<string, ShuttleShift> shiftsByKey,
+        IReadOnlyDictionary<string, RoutePoint> routePointsByKey)
+    {
+        var errors = row.Errors.ToList();
+        var warnings = row.Warnings.ToList();
+        var normalizedData = row.NormalizedData.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value,
+            StringComparer.Ordinal);
+        var shuttleCode = row.NormalizedData["PhysicalShuttleCode"];
+        var shiftName = row.NormalizedData["ShiftName"];
+        var orderText = row.NormalizedData["Order"];
+        var action = row.Action;
+
+        if (!string.IsNullOrWhiteSpace(shuttleCode)
+            && !string.IsNullOrWhiteSpace(shiftName)
+            && !string.IsNullOrWhiteSpace(orderText))
+        {
+            var order = int.Parse(orderText, System.Globalization.CultureInfo.InvariantCulture);
+            var routeKey = RouteKey(shuttleCode, shiftName, order);
+
+            if (duplicateKeys.Contains(routeKey))
+            {
+                errors.Add("Excel dosyasinda ayni servis/vardiya/sira birden fazla satirda bulunuyor.");
+                action = "Conflict";
+            }
+
+            if (errors.Count == 0 && !shiftsByKey.ContainsKey(ShiftKey(shuttleCode, shiftName)))
+            {
+                errors.Add("Servis vardiyasi sistemde bulunamadi.");
+                action = "Conflict";
+            }
+
+            if (errors.Count == 0 && routePointsByKey.TryGetValue(routeKey, out var routePoint))
+            {
+                normalizedData["CurrentName"] = routePoint.Name;
+                if (HasRoutePointChanges(routePoint, row))
+                {
+                    warnings.Add("Guzergah noktasi sistemde mevcut, guncelleme adayi.");
+                    action = "Update";
+                }
+                else
+                {
+                    warnings.Add("Guzergah noktasi sistemde mevcut, degisiklik yok.");
+                    action = "NoChange";
+                }
+            }
+        }
+
+        var status = errors.Count > 0 ? "Error" : warnings.Count > 0 ? "Warning" : row.Status;
+
+        return row with
+        {
+            Status = status,
+            Action = action,
+            NormalizedData = normalizedData,
+            Errors = errors,
+            Warnings = warnings
+        };
+    }
+
     private static bool HasPersonnelChanges(Personnel personnel, ExcelPreviewRowDto row)
     {
         return personnel.FirstName != row.NormalizedData["FirstName"]
@@ -571,6 +847,17 @@ public sealed class ExcelImportPreviewService(
             || personnel.Address != row.NormalizedData["Address"]
             || personnel.Latitude != ParseNullableDecimal(row.NormalizedData["Latitude"])
             || personnel.Longitude != ParseNullableDecimal(row.NormalizedData["Longitude"]);
+    }
+
+    private static bool HasRoutePointChanges(RoutePoint routePoint, ExcelPreviewRowDto row)
+    {
+        var importedIsActive = ParseNullableBoolean(row.NormalizedData["IsActive"]);
+
+        return routePoint.Name != row.NormalizedData["Name"]
+            || routePoint.Address != row.NormalizedData["Address"]
+            || routePoint.Latitude != ParseNullableDecimal(row.NormalizedData["Latitude"])
+            || routePoint.Longitude != ParseNullableDecimal(row.NormalizedData["Longitude"])
+            || (importedIsActive.HasValue && routePoint.IsActive != importedIsActive.Value);
     }
 
     private static Personnel CreatePersonnel(ExcelPreviewRowDto row)
@@ -602,6 +889,44 @@ public sealed class ExcelImportPreviewService(
             ParseNullableDecimal(row.NormalizedData["Latitude"]),
             ParseNullableDecimal(row.NormalizedData["Longitude"]),
             DateTimeOffset.UtcNow);
+    }
+
+    private static RoutePoint CreateRoutePoint(Guid shuttleShiftId, ExcelPreviewRowDto row)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var routePoint = new RoutePoint(
+            shuttleShiftId,
+            int.Parse(row.NormalizedData["Order"]!, System.Globalization.CultureInfo.InvariantCulture),
+            row.NormalizedData["Name"]!,
+            row.NormalizedData["Address"],
+            ParseNullableDecimal(row.NormalizedData["Latitude"])!.Value,
+            ParseNullableDecimal(row.NormalizedData["Longitude"])!.Value,
+            now);
+
+        var importedIsActive = ParseNullableBoolean(row.NormalizedData["IsActive"]);
+        if (importedIsActive.HasValue && !importedIsActive.Value)
+        {
+            routePoint.SetActiveStatus(false, now);
+        }
+
+        return routePoint;
+    }
+
+    private static void UpdateRoutePoint(RoutePoint routePoint, ExcelPreviewRowDto row)
+    {
+        var now = DateTimeOffset.UtcNow;
+        routePoint.Update(
+            row.NormalizedData["Name"]!,
+            row.NormalizedData["Address"],
+            ParseNullableDecimal(row.NormalizedData["Latitude"])!.Value,
+            ParseNullableDecimal(row.NormalizedData["Longitude"])!.Value,
+            now);
+
+        var importedIsActive = ParseNullableBoolean(row.NormalizedData["IsActive"]);
+        if (importedIsActive.HasValue && routePoint.IsActive != importedIsActive.Value)
+        {
+            routePoint.SetActiveStatus(importedIsActive.Value, now);
+        }
     }
 
     private static decimal? ParseNullableDecimal(string? value)
@@ -648,6 +973,22 @@ public sealed class ExcelImportPreviewService(
             : rawValue;
     }
 
+    private static string? NormalizeBoolean(
+        ExcelSheetRowDto row,
+        IReadOnlyDictionary<string, string> mapping,
+        string targetField)
+    {
+        var rawValue = NormalizeMappedValue(row, mapping, targetField, ExcelValueNormalizer.NullIfWhiteSpace);
+        if (rawValue is null)
+        {
+            return null;
+        }
+
+        return ExcelValueNormalizer.TryParseBoolean(rawValue, out var value)
+            ? value.ToString(System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()
+            : rawValue;
+    }
+
     private static void AddIntegerWarningIfInvalid(
         ExcelSheetRowDto row,
         IReadOnlyDictionary<string, string> mapping,
@@ -662,9 +1003,65 @@ public sealed class ExcelImportPreviewService(
         }
     }
 
+    private static void AddBooleanWarningIfInvalid(
+        ExcelSheetRowDto row,
+        IReadOnlyDictionary<string, string> mapping,
+        string targetField,
+        string label,
+        ICollection<string> warnings)
+    {
+        var rawValue = NormalizeMappedValue(row, mapping, targetField, ExcelValueNormalizer.NullIfWhiteSpace);
+        if (rawValue is not null && !ExcelValueNormalizer.TryParseBoolean(rawValue, out _))
+        {
+            warnings.Add($"{label} evet/hayir degerine cevrilemedi.");
+        }
+    }
+
+    private static void AddRequiredCoordinateErrorIfInvalid(
+        ExcelSheetRowDto row,
+        IReadOnlyDictionary<string, string> mapping,
+        string targetField,
+        string label,
+        ICollection<string> errors)
+    {
+        var rawValue = NormalizeMappedValue(row, mapping, targetField, ExcelValueNormalizer.NullIfWhiteSpace);
+        if (rawValue is null)
+        {
+            errors.Add($"{label} bos birakilamaz.");
+            return;
+        }
+
+        if (!ExcelValueNormalizer.TryParseDecimal(rawValue, out _))
+        {
+            errors.Add($"{label} sayisal degere cevrilemedi.");
+        }
+    }
+
     private static string CapacityKey(string shuttleCode, string shiftName)
     {
         return $"{ExcelValueNormalizer.NormalizeCode(shuttleCode)}|{ExcelValueNormalizer.NormalizeWhitespace(shiftName)}";
+    }
+
+    private static string ShiftKey(string shuttleCode, string shiftName)
+    {
+        return CapacityKey(shuttleCode, shiftName);
+    }
+
+    private static string RouteKey(string shuttleCode, string shiftName, int order)
+    {
+        return $"{ShiftKey(shuttleCode, shiftName)}|{order}";
+    }
+
+    private static bool? ParseNullableBoolean(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return ExcelValueNormalizer.TryParseBoolean(value, out var parsed)
+            ? parsed
+            : null;
     }
 
     private static ShiftType? ParseShiftType(string? value)
