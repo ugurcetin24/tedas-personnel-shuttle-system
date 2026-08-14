@@ -1,5 +1,10 @@
 import { useMutation } from '@tanstack/react-query'
-import { commitPersonnelImport, previewPersonnelImport } from './importApi'
+import {
+  commitCapacityImport,
+  commitPersonnelImport,
+  previewCapacityImport,
+  previewPersonnelImport,
+} from './importApi'
 
 export function usePreviewPersonnelImport() {
   return useMutation({
@@ -10,5 +15,17 @@ export function usePreviewPersonnelImport() {
 export function useCommitPersonnelImport() {
   return useMutation({
     mutationFn: commitPersonnelImport,
+  })
+}
+
+export function usePreviewCapacityImport() {
+  return useMutation({
+    mutationFn: previewCapacityImport,
+  })
+}
+
+export function useCommitCapacityImport() {
+  return useMutation({
+    mutationFn: commitCapacityImport,
   })
 }

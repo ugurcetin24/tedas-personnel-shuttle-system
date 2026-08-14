@@ -155,6 +155,31 @@ public sealed class ShiftServiceTests
             return Task.FromResult<IReadOnlyList<ShuttleShift>>(shifts);
         }
 
+        public Task<IReadOnlyList<ShuttleShift>> ListByShuttleCodesAsync(
+            IReadOnlyCollection<string> shuttleCodes,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<ShuttleShift>>([]);
+        }
+
+        public Task<IReadOnlyDictionary<string, PhysicalShuttle>> GetShuttlesByCodesAsync(
+            IReadOnlyCollection<string> shuttleCodes,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyDictionary<string, PhysicalShuttle>>(
+                new Dictionary<string, PhysicalShuttle>(StringComparer.OrdinalIgnoreCase));
+        }
+
+        public Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsAsync(
+            IReadOnlyCollection<Guid> shiftIds,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyDictionary<Guid, int>>(
+                _occupancyByShiftId
+                    .Where(pair => shiftIds.Contains(pair.Key))
+                    .ToDictionary(pair => pair.Key, pair => pair.Value));
+        }
+
         public Task<ShuttleShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
         {
             return Task.FromResult(_shifts.FirstOrDefault(shift => shift.Id == id));
@@ -175,6 +200,20 @@ public sealed class ShiftServiceTests
             _shifts.Add(shift);
 
             return Task.CompletedTask;
+        }
+
+        public Task AddRangeAsync(IReadOnlyCollection<ShuttleShift> shifts, CancellationToken cancellationToken)
+        {
+            _shifts.AddRange(shifts);
+
+            return Task.CompletedTask;
+        }
+
+        public async Task ExecuteInTransactionAsync(
+            Func<CancellationToken, Task> operation,
+            CancellationToken cancellationToken)
+        {
+            await operation(cancellationToken);
         }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken)

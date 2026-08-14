@@ -31,3 +31,5 @@ export type PersonnelImportCommitResult = {
   skippedCount: number
   rows: ExcelPreviewRow[]
 }
+
+export type CapacityImportCommitResult = PersonnelImportCommitResult

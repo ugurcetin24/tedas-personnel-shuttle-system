@@ -5,6 +5,7 @@ using Tedas.Shuttle.Application.Common;
 using Tedas.Shuttle.Application.Imports;
 using Tedas.Shuttle.Application.Services;
 using Tedas.Shuttle.Domain.Entities;
+using Tedas.Shuttle.Domain.Enums;
 using Tedas.Shuttle.Infrastructure.Excel;
 using Tedas.Shuttle.Infrastructure.Persistence;
 using Tedas.Shuttle.Infrastructure.Repositories;
@@ -276,6 +277,95 @@ public sealed class ExcelCoreTests
         Assert.Null(await fixture.GetPersonnelAsync("TEST-1001"));
     }
 
+    [Fact]
+    public async Task PreviewCapacityAsync_WithExistingShift_MarksUpdate()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        var shuttle = await fixture.AddShuttleAsync("SERVIS-01");
+        await fixture.AddShiftAsync(shuttle, "Sabah", 18);
+        await using var stream = CreateCapacityWorkbook("SERVIS-01", "Sabah", "20");
+        var service = fixture.CreateService();
+
+        var preview = await service.PreviewCapacityAsync(stream, "kapasite.xlsx", null, CancellationToken.None);
+
+        Assert.Equal("Warning", preview.Rows[0].Status);
+        Assert.Equal("Update", preview.Rows[0].Action);
+        Assert.Equal("18", preview.Rows[0].NormalizedData["CurrentCapacity"]);
+    }
+
+    [Fact]
+    public async Task PreviewCapacityAsync_WhenCapacityBelowOccupancy_MarksConflict()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        var shuttle = await fixture.AddShuttleAsync("SERVIS-01");
+        var shift = await fixture.AddShiftAsync(shuttle, "Sabah", 20);
+        await fixture.AddAssignmentsAsync(shift, 3);
+        await using var stream = CreateCapacityWorkbook("SERVIS-01", "Sabah", "2");
+        var service = fixture.CreateService();
+
+        var preview = await service.PreviewCapacityAsync(stream, "kapasite.xlsx", null, CancellationToken.None);
+
+        Assert.Equal("Error", preview.Rows[0].Status);
+        Assert.Equal("Conflict", preview.Rows[0].Action);
+        Assert.Contains(preview.Rows[0].Errors, error => error.Contains("aktif atama", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task CommitCapacityAsync_WithExistingAndNewShift_PersistsInTransaction()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        var shuttle = await fixture.AddShuttleAsync("SERVIS-01");
+        await fixture.AddShiftAsync(shuttle, "Sabah", 18);
+        await using var stream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Kapasite");
+            AddCapacityHeaders(sheet);
+            sheet.Cell(2, 1).Value = "SERVIS-01";
+            sheet.Cell(2, 2).Value = "Sabah";
+            sheet.Cell(2, 3).Value = "20";
+            sheet.Cell(3, 1).Value = "SERVIS-01";
+            sheet.Cell(3, 2).Value = "Aksam";
+            sheet.Cell(3, 3).Value = "16";
+            sheet.Cell(3, 4).Value = "Aksam";
+            sheet.Cell(3, 5).Value = "17:30";
+            sheet.Cell(3, 6).Value = "19:00";
+        });
+        var service = fixture.CreateService();
+
+        var result = await service.CommitCapacityAsync(stream, "kapasite.xlsx", null, CancellationToken.None);
+
+        Assert.Equal(1, result.CreatedCount);
+        Assert.Equal(1, result.UpdatedCount);
+        Assert.Equal(20, (await fixture.GetShiftAsync("SERVIS-01", "Sabah"))!.Capacity);
+        Assert.Equal(16, (await fixture.GetShiftAsync("SERVIS-01", "Aksam"))!.Capacity);
+    }
+
+    [Fact]
+    public async Task CommitCapacityAsync_WithDuplicateRows_DoesNotPersist()
+    {
+        await using var fixture = await ExcelImportFixture.CreateAsync();
+        var shuttle = await fixture.AddShuttleAsync("SERVIS-01");
+        await fixture.AddShiftAsync(shuttle, "Sabah", 18);
+        await using var stream = CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Kapasite");
+            AddCapacityHeaders(sheet);
+            sheet.Cell(2, 1).Value = "SERVIS-01";
+            sheet.Cell(2, 2).Value = "Sabah";
+            sheet.Cell(2, 3).Value = "20";
+            sheet.Cell(3, 1).Value = "SERVIS-01";
+            sheet.Cell(3, 2).Value = "Sabah";
+            sheet.Cell(3, 3).Value = "21";
+        });
+        var service = fixture.CreateService();
+
+        var exception = await Assert.ThrowsAsync<BusinessConflictException>(() =>
+            service.CommitCapacityAsync(stream, "kapasite.xlsx", null, CancellationToken.None));
+
+        Assert.Equal("CAPACITY_IMPORT_PREVIEW_HAS_ERRORS", exception.Code);
+        Assert.Equal(18, (await fixture.GetShiftAsync("SERVIS-01", "Sabah"))!.Capacity);
+    }
+
     private static MemoryStream CreateWorkbook(Action<XLWorkbook> configure)
     {
         using var workbook = new XLWorkbook();
@@ -286,6 +376,28 @@ public sealed class ExcelCoreTests
         stream.Position = 0;
 
         return stream;
+    }
+
+    private static MemoryStream CreateCapacityWorkbook(string shuttleCode, string shiftName, string capacity)
+    {
+        return CreateWorkbook(workbook =>
+        {
+            var sheet = workbook.Worksheets.Add("Kapasite");
+            AddCapacityHeaders(sheet);
+            sheet.Cell(2, 1).Value = shuttleCode;
+            sheet.Cell(2, 2).Value = shiftName;
+            sheet.Cell(2, 3).Value = capacity;
+        });
+    }
+
+    private static void AddCapacityHeaders(IXLWorksheet sheet)
+    {
+        sheet.Cell(1, 1).Value = "Servis Kodu";
+        sheet.Cell(1, 2).Value = "Vardiya";
+        sheet.Cell(1, 3).Value = "Kapasite";
+        sheet.Cell(1, 4).Value = "Vardiya Tipi";
+        sheet.Cell(1, 5).Value = "Baslangic";
+        sheet.Cell(1, 6).Value = "Bitis";
     }
 
     private sealed class ExcelImportFixture : IAsyncDisposable
@@ -319,7 +431,8 @@ public sealed class ExcelCoreTests
         {
             return new ExcelImportPreviewService(
                 new ClosedXmlWorkbookReader(),
-                new PersonnelRepository(DbContext));
+                new PersonnelRepository(DbContext),
+                new ShiftRepository(DbContext));
         }
 
         public async Task AddPersonnelAsync(
@@ -347,6 +460,70 @@ public sealed class ExcelCoreTests
         {
             return DbContext.Personnel.FirstOrDefaultAsync(
                 personnel => personnel.RegistrationNumber == registrationNumber);
+        }
+
+        public async Task<PhysicalShuttle> AddShuttleAsync(string code)
+        {
+            var shuttle = new PhysicalShuttle(code, "06 TEST 01", "Test servis", DateTimeOffset.UtcNow);
+            DbContext.PhysicalShuttles.Add(shuttle);
+            await DbContext.SaveChangesAsync();
+
+            return shuttle;
+        }
+
+        public async Task<ShuttleShift> AddShiftAsync(
+            PhysicalShuttle shuttle,
+            string name,
+            int capacity)
+        {
+            var shift = new ShuttleShift(
+                shuttle.Id,
+                name,
+                ShiftType.Morning,
+                capacity,
+                new TimeOnly(7, 30),
+                new TimeOnly(9, 0),
+                DateTimeOffset.UtcNow);
+            DbContext.ShuttleShifts.Add(shift);
+            await DbContext.SaveChangesAsync();
+
+            return shift;
+        }
+
+        public async Task AddAssignmentsAsync(ShuttleShift shift, int count)
+        {
+            for (var index = 0; index < count; index++)
+            {
+                var personnel = new Personnel(
+                    $"TEST-{2000 + index}",
+                    "Test",
+                    $"Personel{index}",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    DateTimeOffset.UtcNow);
+                DbContext.Personnel.Add(personnel);
+                DbContext.PersonnelAssignments.Add(new PersonnelAssignment(
+                    personnel.Id,
+                    shift.Id,
+                    null,
+                    DateTimeOffset.UtcNow));
+            }
+
+            await DbContext.SaveChangesAsync();
+        }
+
+        public Task<ShuttleShift?> GetShiftAsync(string shuttleCode, string shiftName)
+        {
+            return DbContext.ShuttleShifts
+                .Include(shift => shift.PhysicalShuttle)
+                .FirstOrDefaultAsync(shift =>
+                    shift.PhysicalShuttle!.Code == shuttleCode
+                    && shift.Name == shiftName);
         }
 
         public async ValueTask DisposeAsync()

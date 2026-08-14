@@ -6,26 +6,40 @@ import {
   Divider,
   Paper,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
   Typography,
 } from '@mui/material'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, SyntheticEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import type { ImportAction, ImportStatus } from '../features/imports/importTypes'
-import { useCommitPersonnelImport, usePreviewPersonnelImport } from '../features/imports/useImports'
+import {
+  useCommitCapacityImport,
+  useCommitPersonnelImport,
+  usePreviewCapacityImport,
+  usePreviewPersonnelImport,
+} from '../features/imports/useImports'
 import { getApiErrorMessage } from '../utils/apiErrors'
 
+type ImportMode = 'personnel' | 'capacity'
+
 export function ImportsPage() {
+  const [mode, setMode] = useState<ImportMode>('personnel')
   const [selectedFileName, setSelectedFileName] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const previewMutation = usePreviewPersonnelImport()
-  const commitMutation = useCommitPersonnelImport()
+  const personnelPreviewMutation = usePreviewPersonnelImport()
+  const personnelCommitMutation = useCommitPersonnelImport()
+  const capacityPreviewMutation = usePreviewCapacityImport()
+  const capacityCommitMutation = useCommitCapacityImport()
+  const previewMutation = mode === 'personnel' ? personnelPreviewMutation : capacityPreviewMutation
+  const commitMutation = mode === 'personnel' ? personnelCommitMutation : capacityCommitMutation
   const preview = previewMutation.data
   const visibleRows = preview?.rows.slice(0, 50) ?? []
   const previewStats = useMemo(() => {
@@ -41,6 +55,16 @@ export function ImportsPage() {
     }
   }, [preview?.rows])
   const canCommit = !!selectedFile && !!preview && previewStats.error === 0 && preview.rows.length > 0
+
+  function handleModeChange(_: SyntheticEvent, value: ImportMode) {
+    setMode(value)
+    setSelectedFile(null)
+    setSelectedFileName('')
+    personnelPreviewMutation.reset()
+    personnelCommitMutation.reset()
+    capacityPreviewMutation.reset()
+    capacityCommitMutation.reset()
+  }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -83,20 +107,26 @@ export function ImportsPage() {
 
       <Paper variant="outlined" sx={{ borderRadius: 1, p: 2 }}>
         <Stack spacing={2}>
+          <Tabs value={mode} onChange={handleModeChange}>
+            <Tab value="personnel" label="Personel" />
+            <Tab value="capacity" label="Kapasite" />
+          </Tabs>
+
           <Stack direction={{ xs: 'column', md: 'row' }} sx={{ justifyContent: 'space-between', gap: 2 }}>
             <Stack spacing={0.5}>
-              <Typography variant="subtitle1">Personel Excel onizleme</Typography>
+              <Typography variant="subtitle1">{getModeTitle(mode)}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {selectedFileName || 'Henuz dosya secilmedi.'}
               </Typography>
             </Stack>
             {preview ? (
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
                 <Chip size="small" color="success" variant="outlined" label={`Gecerli ${previewStats.valid}`} />
                 <Chip size="small" color="warning" variant="outlined" label={`Uyari ${previewStats.warning}`} />
                 <Chip size="small" color="error" variant="outlined" label={`Hata ${previewStats.error}`} />
                 <Chip size="small" variant="outlined" label={`Yeni ${previewStats.create}`} />
                 <Chip size="small" variant="outlined" label={`Guncelleme ${previewStats.update}`} />
+                <Chip size="small" variant="outlined" label={`Degisiklik yok ${previewStats.noChange}`} />
               </Stack>
             ) : null}
           </Stack>
@@ -137,9 +167,21 @@ export function ImportsPage() {
                       <TableCell width={96}>Satir</TableCell>
                       <TableCell width={120}>Durum</TableCell>
                       <TableCell width={128}>Aksiyon</TableCell>
-                      <TableCell>Sicil</TableCell>
-                      <TableCell>Ad Soyad</TableCell>
-                      <TableCell>Birim</TableCell>
+                      {mode === 'personnel' ? (
+                        <>
+                          <TableCell>Sicil</TableCell>
+                          <TableCell>Ad Soyad</TableCell>
+                          <TableCell>Birim</TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell>Servis</TableCell>
+                          <TableCell>Vardiya</TableCell>
+                          <TableCell>Kapasite</TableCell>
+                          <TableCell>Mevcut</TableCell>
+                          <TableCell>Dolu</TableCell>
+                        </>
+                      )}
                       <TableCell>Aciklama</TableCell>
                     </TableRow>
                   </TableHead>
@@ -156,18 +198,31 @@ export function ImportsPage() {
                           />
                         </TableCell>
                         <TableCell>{getActionLabel(row.action)}</TableCell>
-                        <TableCell>{row.normalizedData.RegistrationNumber ?? '-'}</TableCell>
-                        <TableCell>
-                          {[row.normalizedData.FirstName, row.normalizedData.LastName].filter(Boolean).join(' ') ||
-                            '-'}
-                        </TableCell>
-                        <TableCell>{row.normalizedData.Department ?? '-'}</TableCell>
+                        {mode === 'personnel' ? (
+                          <>
+                            <TableCell>{row.normalizedData.RegistrationNumber ?? '-'}</TableCell>
+                            <TableCell>
+                              {[row.normalizedData.FirstName, row.normalizedData.LastName]
+                                .filter(Boolean)
+                                .join(' ') || '-'}
+                            </TableCell>
+                            <TableCell>{row.normalizedData.Department ?? '-'}</TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell>{row.normalizedData.PhysicalShuttleCode ?? '-'}</TableCell>
+                            <TableCell>{row.normalizedData.ShiftName ?? '-'}</TableCell>
+                            <TableCell>{row.normalizedData.Capacity ?? '-'}</TableCell>
+                            <TableCell>{row.normalizedData.CurrentCapacity ?? '-'}</TableCell>
+                            <TableCell>{row.normalizedData.Occupancy ?? '-'}</TableCell>
+                          </>
+                        )}
                         <TableCell>{[...row.errors, ...row.warnings].join(' ') || '-'}</TableCell>
                       </TableRow>
                     ))}
                     {visibleRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                        <TableCell colSpan={mode === 'personnel' ? 7 : 9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                           Onizlenecek satir bulunamadi.
                         </TableCell>
                       </TableRow>
@@ -181,6 +236,10 @@ export function ImportsPage() {
       </Paper>
     </Stack>
   )
+}
+
+function getModeTitle(mode: ImportMode) {
+  return mode === 'personnel' ? 'Personel Excel onizleme' : 'Servis kapasitesi Excel onizleme'
 }
 
 function getStatusLabel(status: ImportStatus) {

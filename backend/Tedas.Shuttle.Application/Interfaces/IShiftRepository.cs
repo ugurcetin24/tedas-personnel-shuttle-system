@@ -14,11 +14,29 @@ public interface IShiftRepository
 
     Task<ShuttleShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ShuttleShift>> ListByShuttleCodesAsync(
+        IReadOnlyCollection<string> shuttleCodes,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyDictionary<string, PhysicalShuttle>> GetShuttlesByCodesAsync(
+        IReadOnlyCollection<string> shuttleCodes,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsAsync(
+        IReadOnlyCollection<Guid> shiftIds,
+        CancellationToken cancellationToken);
+
     Task<bool> ShuttleExistsAsync(Guid physicalShuttleId, CancellationToken cancellationToken);
 
     Task<int> GetActiveAssignmentCountAsync(Guid shiftId, CancellationToken cancellationToken);
 
     Task AddAsync(ShuttleShift shift, CancellationToken cancellationToken);
+
+    Task AddRangeAsync(IReadOnlyCollection<ShuttleShift> shifts, CancellationToken cancellationToken);
+
+    Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

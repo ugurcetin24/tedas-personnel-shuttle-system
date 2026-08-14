@@ -48,6 +48,55 @@ public sealed class ShiftRepository(AppDbContext dbContext) : IShiftRepository
             .FirstOrDefaultAsync(shift => shift.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ShuttleShift>> ListByShuttleCodesAsync(
+        IReadOnlyCollection<string> shuttleCodes,
+        CancellationToken cancellationToken)
+    {
+        if (shuttleCodes.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.ShuttleShifts
+            .Include(shift => shift.PhysicalShuttle)
+            .Where(shift => shuttleCodes.Contains(shift.PhysicalShuttle!.Code))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyDictionary<string, PhysicalShuttle>> GetShuttlesByCodesAsync(
+        IReadOnlyCollection<string> shuttleCodes,
+        CancellationToken cancellationToken)
+    {
+        if (shuttleCodes.Count == 0)
+        {
+            return new Dictionary<string, PhysicalShuttle>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var shuttles = await dbContext.PhysicalShuttles
+            .Where(shuttle => shuttleCodes.Contains(shuttle.Code))
+            .ToArrayAsync(cancellationToken);
+
+        return shuttles.ToDictionary(
+            shuttle => shuttle.Code,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsAsync(
+        IReadOnlyCollection<Guid> shiftIds,
+        CancellationToken cancellationToken)
+    {
+        if (shiftIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        return await dbContext.PersonnelAssignments
+            .Where(assignment => shiftIds.Contains(assignment.ShuttleShiftId) && assignment.IsActive)
+            .GroupBy(assignment => assignment.ShuttleShiftId)
+            .Select(group => new { ShiftId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.ShiftId, item => item.Count, cancellationToken);
+    }
+
     public Task<bool> ShuttleExistsAsync(Guid physicalShuttleId, CancellationToken cancellationToken)
     {
         return dbContext.PhysicalShuttles.AnyAsync(
@@ -65,6 +114,20 @@ public sealed class ShiftRepository(AppDbContext dbContext) : IShiftRepository
     public async Task AddAsync(ShuttleShift shift, CancellationToken cancellationToken)
     {
         await dbContext.ShuttleShifts.AddAsync(shift, cancellationToken);
+    }
+
+    public async Task AddRangeAsync(IReadOnlyCollection<ShuttleShift> shifts, CancellationToken cancellationToken)
+    {
+        await dbContext.ShuttleShifts.AddRangeAsync(shifts, cancellationToken);
+    }
+
+    public async Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await operation(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken)

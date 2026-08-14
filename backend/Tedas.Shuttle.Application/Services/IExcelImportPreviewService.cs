@@ -22,4 +22,16 @@ public interface IExcelImportPreviewService
         string fileName,
         string? sheetName,
         CancellationToken cancellationToken);
+
+    Task<ExcelImportPreviewDto> PreviewCapacityAsync(
+        Stream stream,
+        string fileName,
+        string? sheetName,
+        CancellationToken cancellationToken);
+
+    Task<CapacityImportCommitResultDto> CommitCapacityAsync(
+        Stream stream,
+        string fileName,
+        string? sheetName,
+        CancellationToken cancellationToken);
 }

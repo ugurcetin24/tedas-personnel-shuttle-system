@@ -119,6 +119,8 @@ Excel preview endpoint:
 ```text
 POST /api/imports/personnel/preview
 POST /api/imports/personnel/commit
+POST /api/imports/capacity/preview
+POST /api/imports/capacity/commit
 ```
 
 ## Frontend Commands
@@ -408,6 +410,33 @@ Phase 12 ile personel Excel import akışı tamamlanmıştır:
   - hatasız preview için içeri aktarma butonunu aktif eder
   - commit sonucunda oluşturulan, güncellenen ve atlanan satır özetini gösterir
 
+## Shuttle Capacity Excel Import Module
+
+Phase 13 ile servis/vardiya kapasite import akışı tamamlanmıştır:
+
+- Kapasite import business key:
+  - `PhysicalShuttle.Code + ShuttleShift.Name`
+- Preview davranışı:
+  - mevcut servis/vardiya bulunduysa sistem kapasitesi ve doluluk bilgisi gösterilir
+  - kapasite farklıysa `Update`
+  - kapasite aynıysa `NoChange`
+  - servis kodu sistemde yoksa `Conflict`
+  - Excel içinde aynı servis/vardiya tekrar ediyorsa `Conflict`
+  - yeni vardiya için servis mevcutsa ve vardiya tipi / başlangıç / bitiş bilgisi varsa `Create`
+  - yeni kapasite mevcut aktif atama sayısından düşükse `Conflict`
+- Commit endpointleri:
+  - `POST /api/imports/capacity/preview`
+  - `POST /api/imports/capacity/commit`
+- Commit davranışı:
+  - preview içinde hata varsa commit reddedilir
+  - create/update işlemleri EF Core transaction içinde yapılır
+  - kapasite güncellemesi backend business rule ile doluluk altına düşemez
+- Frontend Excel Aktarım sayfası:
+  - Personel / Kapasite import modu
+  - kapasite preview tablosunda servis, vardiya, Excel kapasitesi, mevcut kapasite ve doluluk bilgisi
+  - hatasız preview için içeri aktarma
+  - commit sonucunda oluşturulan, güncellenen ve atlanan satır özeti
+
 ## Project Phases
 
 - Phase 0: Environment ve scaffolding. Tamamlandı.
@@ -423,4 +452,5 @@ Phase 12 ile personel Excel import akışı tamamlanmıştır:
 - Phase 10: OSRM routing. Tamamlandı.
 - Phase 11: Excel import/export core. Tamamlandı.
 - Phase 12: Personnel import preview, conflict detection ve transaction commit. Tamamlandı.
-- Phase 13: Shuttle capacity import. Sıradaki faz.
+- Phase 13: Shuttle capacity import. Tamamlandı.
+- Phase 14: Route import. Sıradaki faz.

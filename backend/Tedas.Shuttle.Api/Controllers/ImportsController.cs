@@ -57,4 +57,52 @@ public sealed class ImportsController(IExcelImportPreviewService excelImportPrev
 
         return Ok(result);
     }
+
+    [HttpPost("capacity/preview")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> PreviewCapacity(
+        IFormFile file,
+        [FromForm] string? sheetName,
+        CancellationToken cancellationToken)
+    {
+        if (file.Length == 0)
+        {
+            throw new BusinessConflictException(
+                "EXCEL_FILE_EMPTY",
+                "Excel dosyasi bos olamaz.");
+        }
+
+        await using var stream = file.OpenReadStream();
+        var preview = await excelImportPreviewService.PreviewCapacityAsync(
+            stream,
+            file.FileName,
+            sheetName,
+            cancellationToken);
+
+        return Ok(preview);
+    }
+
+    [HttpPost("capacity/commit")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> CommitCapacity(
+        IFormFile file,
+        [FromForm] string? sheetName,
+        CancellationToken cancellationToken)
+    {
+        if (file.Length == 0)
+        {
+            throw new BusinessConflictException(
+                "EXCEL_FILE_EMPTY",
+                "Excel dosyasi bos olamaz.");
+        }
+
+        await using var stream = file.OpenReadStream();
+        var result = await excelImportPreviewService.CommitCapacityAsync(
+            stream,
+            file.FileName,
+            sheetName,
+            cancellationToken);
+
+        return Ok(result);
+    }
 }

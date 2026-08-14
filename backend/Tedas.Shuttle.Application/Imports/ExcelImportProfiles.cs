@@ -67,4 +67,46 @@ public static class ExcelImportProfiles
             "Lng"
         })
     ];
+
+    public static readonly IReadOnlyList<ExcelColumnMappingProfile> ShuttleCapacity =
+    [
+        new("PhysicalShuttleCode", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Servis",
+            "Servis Kodu",
+            "Servis No",
+            "Shuttle Code"
+        }),
+        new("ShiftName", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Vardiya",
+            "Vardiya Adi",
+            "Shift",
+            "Shift Name"
+        }),
+        new("Capacity", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Kapasite",
+            "Kontenjan",
+            "Capacity"
+        }),
+        new("ShiftType", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Vardiya Tipi",
+            "Tip",
+            "Shift Type"
+        }),
+        new("StartTime", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Baslangic",
+            "Baslangic Saati",
+            "Start Time"
+        }),
+        new("EndTime", new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Bitis",
+            "Bitis Saati",
+            "End Time"
+        })
+    ];
 }

@@ -23,6 +23,11 @@ public static partial class ExcelValueNormalizer
         return NormalizeWhitespace(value).ToUpperInvariant();
     }
 
+    public static string NormalizeCode(string? value)
+    {
+        return NormalizeWhitespace(value).ToUpperInvariant();
+    }
+
     public static string? NormalizePhone(string? value)
     {
         var normalized = NullIfWhiteSpace(value);
@@ -49,6 +54,14 @@ public static partial class ExcelValueNormalizer
 
         return decimal.TryParse(normalized, NumberStyles.Number, TurkishCulture, out result)
             || decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out result);
+    }
+
+    public static bool TryParseTime(string? value, out TimeOnly result)
+    {
+        var normalized = NormalizeWhitespace(value);
+
+        return TimeOnly.TryParse(normalized, TurkishCulture, out result)
+            || TimeOnly.TryParse(normalized, CultureInfo.InvariantCulture, out result);
     }
 
     [GeneratedRegex("[^0-9+]")]
