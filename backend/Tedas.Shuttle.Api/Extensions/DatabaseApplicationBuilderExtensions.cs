@@ -15,6 +15,19 @@ public static class DatabaseApplicationBuilderExtensions
         dbContext.Database.Migrate();
         logger.LogInformation("TEDAŞ Shuttle database migration completed.");
 
+        if (app.Environment.IsDevelopment() && IsDemoDataSeedEnabled(app))
+        {
+            DemoDataSeeder.Seed(dbContext, logger);
+        }
+
         return app;
+    }
+
+    private static bool IsDemoDataSeedEnabled(WebApplication app)
+    {
+        return string.Equals(
+            app.Configuration["DemoData:SeedOnStartup"],
+            "true",
+            StringComparison.OrdinalIgnoreCase);
     }
 }

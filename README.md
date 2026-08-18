@@ -72,6 +72,32 @@ Loglar:
 
 Path çözümleme `IApplicationDataPathProvider` üzerinden tek noktadan yapılır. `ConnectionStrings:Default` verilirse API bu connection string'i kullanır; verilmezse local app data altındaki SQLite dosyasına gider.
 
+## Demo Data
+
+Development ortamında sunum ve demo amaçlı sanal veri seed edilir.
+
+Konfigürasyon:
+
+```json
+"DemoData": {
+  "SeedOnStartup": true
+}
+```
+
+API startup sırasında migration işlemini tamamladıktan sonra veritabanında operasyonel veri yoksa demo veri oluşturur. Veritabanında personel, servis, vardiya, şoför, atama, güzergah noktası veya kayıtlı rota varsa seed işlemi atlanır; böylece tekrar başlatmada duplicate veri oluşmaz.
+
+Varsayılan demo veri kapsamı:
+
+- 24 personel
+- 5 servis aracı
+- 9 servis vardiyası
+- 6 şoför
+- 18 servis ataması
+- 20 güzergah noktası
+- 5 kayıtlı rota
+
+Sunum verisini kapatmak için `backend/Tedas.Shuttle.Api/appsettings.Development.json` içindeki `DemoData:SeedOnStartup` değeri `false` yapılabilir.
+
 ## Backend Commands
 
 ```bash
