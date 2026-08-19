@@ -319,6 +319,18 @@ Connection string verilirse API onu kullanir:
 }
 ```
 
+Development ortaminda `appsettings.Development.json` uzerinden varsayilan connection string su sekildedir:
+
+```json
+{
+  "ConnectionStrings": {
+    "Default": "Data Source=tedas-shuttle-dev.db"
+  }
+}
+```
+
+Bu ayar, gelistirme ve sunum sirasinda proje calisma dizininde `.gitignore` kapsaminda kalan bir SQLite dosyasi kullanilmasini saglar. Boylece AppData izin/path problemleri sunum akisini bozmaz.
+
 ### 7.3.1 Demo Data Seed
 
 Sunum ve demo senaryolari icin Development ortaminda otomatik demo veri seed mekanizmasi eklenmistir.

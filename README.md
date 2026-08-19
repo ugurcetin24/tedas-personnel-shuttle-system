@@ -72,6 +72,8 @@ Loglar:
 
 Path çözümleme `IApplicationDataPathProvider` üzerinden tek noktadan yapılır. `ConnectionStrings:Default` verilirse API bu connection string'i kullanır; verilmezse local app data altındaki SQLite dosyasına gider.
 
+Development ortamında `appsettings.Development.json` üzerinden varsayılan olarak proje çalışma dizinindeki `tedas-shuttle-dev.db` SQLite dosyası kullanılır. Bu dosya `.gitignore` kapsamındadır ve sunum/demo verileri için güvenle yeniden oluşturulabilir.
+
 ## Demo Data
 
 Development ortamında sunum ve demo amaçlı sanal veri seed edilir.

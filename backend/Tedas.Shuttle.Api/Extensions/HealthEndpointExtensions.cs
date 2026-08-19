@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Tedas.Shuttle.Infrastructure;
 using Tedas.Shuttle.Infrastructure.Persistence;
 
 namespace Tedas.Shuttle.Api.Extensions;
@@ -10,10 +9,10 @@ public static class HealthEndpointExtensions
     {
         endpoints.MapGet("/health", async (
             AppDbContext dbContext,
-            IApplicationDataPathProvider paths,
             CancellationToken cancellationToken) =>
         {
             var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
+            var databasePath = dbContext.Database.GetDbConnection().DataSource;
 
             return Results.Ok(new
             {
@@ -23,7 +22,7 @@ public static class HealthEndpointExtensions
                 {
                     provider = dbContext.Database.ProviderName,
                     canConnect,
-                    path = paths.DatabasePath
+                    path = databasePath
                 }
             });
         })
